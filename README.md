@@ -26,5 +26,5 @@ Launch Blender, from 'File->User Preferences...', active the 'Surface Heat Diffu
 # Usage
 When you select the meshes and the armature, the interface will appear in the 'Animation' tab of the tools shelf on the left.
 
-# Similar project
+# Support
 http://www.mesh-online.net/voxel.html
