@@ -9,6 +9,9 @@ The source code of the octree part is not optimized, it runs quite slow, but the
 
 Edit: I have replaced the octree with naive voxel grid, the speed is stupidly fast now.
 
+# Download
+http://www.mesh-online.net/shd.zip
+
 # Build
 There is a 'Readme.txt' in the 'src' sub-directory.
 
