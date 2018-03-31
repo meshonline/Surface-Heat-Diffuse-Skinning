@@ -12,6 +12,8 @@ Edit: I have replaced the octree with naive voxel grid, the speed is stupidly fa
 # Download
 http://www.mesh-online.net/shd.zip
 
+This is the prebuilt add-on package, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
+
 # Build
 There is a 'Readme.txt' in the 'src' sub-directory.
 
