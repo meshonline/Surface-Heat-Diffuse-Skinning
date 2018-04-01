@@ -2,7 +2,7 @@
 //  main.cpp
 //  Surface Heat Diffuse
 //
-//  Created by MINGFENWANG on 2017/8/29.
+//  Created by MINGFENWANG on 2018/3/25.
 //  Copyright © 2017年 MINGFENWANG. All rights reserved.
 //
 
@@ -212,6 +212,421 @@ class VoxelGrid {
 
     // sample bone segments
     add_all_bones();
+  }
+
+  void calculate_all_voxel_darkness() {
+    int supported_thread_num = std::thread::hardware_concurrency();
+    // at least we can do with one thread
+    if (supported_thread_num == 0) {
+      supported_thread_num = 1;
+    }
+    std::cout << "supported thread num: " << supported_thread_num << std::endl;
+
+    std::cout << "Calculating voxels darkness..." << std::endl;
+    std::vector<std::thread> threads(supported_thread_num);
+
+    // start all threads
+    for (int i = 0; i < supported_thread_num; i++) {
+      threads[i] = std::thread(&VoxelGrid::calculate_darkness_in_range, this, i,
+                               supported_thread_num);
+    }
+
+    // wait for all threads end
+    for (int i = 0; i < supported_thread_num; i++) {
+      threads[i].join();
+    }
+  }
+
+  void diffuse_all_heats() {
+    int supported_thread_num = std::thread::hardware_concurrency();
+    // at least we can do with one thread
+    if (supported_thread_num == 0) {
+      supported_thread_num = 1;
+    }
+    std::cout << "supported thread num: " << supported_thread_num << std::endl;
+
+    std::cout << "Diffusing heats..." << std::endl;
+    for (int i = 0; i < max_grid_num * max_diffuse_loop; i++) {
+      std::cout << "Diffuse pass: " << i << std::endl;
+
+      std::vector<std::thread> threads(supported_thread_num);
+
+      // start all threads
+      for (int j = 0; j < supported_thread_num; j++) {
+        threads[j] = std::thread(&VoxelGrid::diffuse_vertex_in_range, this, j,
+                                 supported_thread_num);
+      }
+
+      // wait for all threads end
+      for (int j = 0; j < supported_thread_num; j++) {
+        threads[j].join();
+      }
+
+      // flip ping pong
+      ping_pong = !ping_pong;
+
+      // the error is small enough
+      if (vertex_heat_standard_error() < 1e-5) {
+        break;
+      }
+    }
+  }
+
+  void generate_weight_for_vertices() {
+    std::cout << "Generating weight for vertices..." << std::endl;
+    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
+      // prepare to fill weights
+      vertices[i].weights.resize(bones.size());
+      vertices[i].weights.shrink_to_fit();
+
+      // copy heats as vertex weights from its voxel
+      if (ping_pong) {
+        for (int j = 0; j < static_cast<int>(bones.size()); j++) {
+          vertices[i].weights[j].bone = j;
+          vertices[i].weights[j].weight = vertices[i].bone_heat.pong_heats[j];
+        }
+      } else {
+        for (int j = 0; j < static_cast<int>(bones.size()); j++) {
+          vertices[i].weights[j].bone = j;
+          vertices[i].weights[j].weight = vertices[i].bone_heat.ping_heats[j];
+        }
+      }
+
+      // sort weights in big-to-small order
+      vertices[i].sort_weight();
+      // remain max influence biggest weights
+      vertices[i].weights.resize(
+          std::max(std::min(max_influence, static_cast<int>(bones.size())), 0));
+      vertices[i].weights.shrink_to_fit();
+
+      // calculate weights sum
+      float sum = 0.0f;
+      for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
+        sum += vertices[i].weights[j].weight;
+      }
+
+      // make weights sum equals one
+      if (sum > 0.0f) {
+        for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
+          vertices[i].weights[j].weight /= sum;
+        }
+      }
+    }
+  }
+
+  void export_bone_weights() {
+    std::cout << "Exporting bone weights..." << std::endl;
+    std::ofstream fout;
+
+    fout.open(weight_file);
+    if (!fout) {
+      return;
+    }
+
+    fout << "# voxel heat diffuse weight export." << std::endl;
+    for (int i = 0; i < static_cast<int>(bones.size()); i++) {
+      fout << "b," << bones[i].name << std::endl;
+    }
+    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
+      for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
+        fout << "w," << i << ',' << vertices[i].weights[j].bone << ','
+             << vertices[i].weights[j].weight << std::endl;
+      }
+    }
+
+    fout.close();
+  }
+
+ private:
+  void read_mesh_from_file(const std::string& filename) {
+    std::ifstream fin;
+
+    fin.open(filename);
+    if (!fin) {
+      return;
+    }
+
+    // read vertices
+    float v1, v2, v3;
+    std::string line;
+    while (std::getline(fin, line)) {
+      std::string label;
+      if (line.find("v,") == 0) {
+        std::vector<std::string> strs;
+        split_string(line, strs, ",");
+        v1 = atof(strs[1].c_str());
+        v2 = atof(strs[2].c_str());
+        v3 = atof(strs[3].c_str());
+        vertices.push_back(Vertex(v1, v2, v3));
+      }
+    }
+    vertices.shrink_to_fit();
+
+    fin.close();
+
+    fin.open(filename);
+    if (!fin) {
+      return;
+    }
+
+    // read faces
+    int f1, f2, f3;
+    while (std::getline(fin, line)) {
+      std::string label;
+      if (line.find("f,") == 0) {
+        std::vector<std::string> strs;
+        split_string(line, strs, ",");
+        for (int i = 0; i < static_cast<int>(strs.size()) - 3; i++) {
+          f1 = atoi(strs[1].c_str());
+          f2 = atoi(strs[i + 2].c_str());
+          f3 = atoi(strs[i + 3].c_str());
+          triangles.push_back(Triangle(f1, f2, f3));
+          // add indices to vertex's neibours
+          std::vector<int>::iterator it;
+          // f1
+          it = std::find(vertices[f1].neibours.begin(),
+                         vertices[f1].neibours.end(), f2);
+          if (it == vertices[f1].neibours.end())
+            vertices[f1].neibours.push_back(f2);
+          it = std::find(vertices[f1].neibours.begin(),
+                         vertices[f1].neibours.end(), f3);
+          if (it == vertices[f1].neibours.end())
+            vertices[f1].neibours.push_back(f3);
+          // f2
+          it = std::find(vertices[f2].neibours.begin(),
+                         vertices[f2].neibours.end(), f1);
+          if (it == vertices[f2].neibours.end())
+            vertices[f2].neibours.push_back(f1);
+          it = std::find(vertices[f2].neibours.begin(),
+                         vertices[f2].neibours.end(), f3);
+          if (it == vertices[f2].neibours.end())
+            vertices[f2].neibours.push_back(f3);
+          // f3
+          it = std::find(vertices[f3].neibours.begin(),
+                         vertices[f3].neibours.end(), f1);
+          if (it == vertices[f3].neibours.end())
+            vertices[f3].neibours.push_back(f1);
+          it = std::find(vertices[f3].neibours.begin(),
+                         vertices[f3].neibours.end(), f2);
+          if (it == vertices[f3].neibours.end())
+            vertices[f3].neibours.push_back(f2);
+        }
+      }
+    }
+    triangles.shrink_to_fit();
+
+    fin.close();
+  }
+
+  void read_bone_from_file(const std::string& filename) {
+    std::ifstream fin;
+
+    fin.open(filename);
+    if (!fin) {
+      return;
+    }
+
+    // read bones
+    std::string name;
+    structvec3 head, tail;
+    std::string line;
+    while (std::getline(fin, line)) {
+      std::string label;
+      if (line.find("b,") == 0) {
+        std::vector<std::string> strs;
+        split_string(line, strs, ",");
+        name = strs[1];
+        head.x = atof(strs[2].c_str());
+        head.y = atof(strs[3].c_str());
+        head.z = atof(strs[4].c_str());
+        tail.x = atof(strs[5].c_str());
+        tail.y = atof(strs[6].c_str());
+        tail.z = atof(strs[7].c_str());
+        bones.push_back(Bone(name, head, tail));
+      }
+    }
+    bones.shrink_to_fit();
+
+    fin.close();
+  }
+
+  inline bool has_triangle(Voxel& voxel) { return voxel.triangles.size() > 0; }
+  inline bool has_vertex(Voxel& voxel) { return voxel.vertices.size() > 0; }
+
+  void get_bound_box(const Triangle& triangle,
+                     structvec3& bb_min,
+                     structvec3& bb_max) {
+    for (int i = 0; i < 3; i++) {
+      if (vertices[triangle.v[i]].pos.x < bb_min.x) {
+        bb_min.x = vertices[triangle.v[i]].pos.x;
+      }
+      if (vertices[triangle.v[i]].pos.y < bb_min.y) {
+        bb_min.y = vertices[triangle.v[i]].pos.y;
+      }
+      if (vertices[triangle.v[i]].pos.z < bb_min.z) {
+        bb_min.z = vertices[triangle.v[i]].pos.z;
+      }
+      if (vertices[triangle.v[i]].pos.x > bb_max.x) {
+        bb_max.x = vertices[triangle.v[i]].pos.x;
+      }
+      if (vertices[triangle.v[i]].pos.y > bb_max.y) {
+        bb_max.y = vertices[triangle.v[i]].pos.y;
+      }
+      if (vertices[triangle.v[i]].pos.z > bb_max.z) {
+        bb_max.z = vertices[triangle.v[i]].pos.z;
+      }
+    }
+  }
+
+  void add_all_triangles() {
+    // loop through all triangles
+    for (int i = 0; i < static_cast<int>(triangles.size()); i++) {
+      // add triangle
+      add_triangle(i);
+    }
+  }
+
+  void add_triangle(int n) {
+    // init the bound box
+    structvec3 bb_min(FLT_MAX, FLT_MAX, FLT_MAX);
+    structvec3 bb_max(FLT_MIN, FLT_MIN, FLT_MIN);
+    // get the bound box
+    get_bound_box(triangles[n], bb_min, bb_max);
+
+    const float inv_grid_size = 1.0f / grid_size;
+    // get index range
+    int min_x = (bb_min.x - grid_offset.x) * inv_grid_size;
+    int min_y = (bb_min.y - grid_offset.y) * inv_grid_size;
+    int min_z = (bb_min.z - grid_offset.z) * inv_grid_size;
+    int max_x = (bb_max.x - grid_offset.x) * inv_grid_size;
+    int max_y = (bb_max.y - grid_offset.y) * inv_grid_size;
+    int max_z = (bb_max.z - grid_offset.z) * inv_grid_size;
+
+    // loop through in the range
+    for (int z = min_z; z <= max_z; z++) {
+      for (int y = min_y; y <= max_y; y++) {
+        for (int x = min_x; x <= max_x; x++) {
+          float boxcenter[3] = {grid_offset.x + (x + 0.5f) * grid_size,
+                                grid_offset.y + (y + 0.5f) * grid_size,
+                                grid_offset.z + (z + 0.5f) * grid_size};
+          float boxhalfsize[3] = {0.5f * grid_size, 0.5f * grid_size,
+                                  0.5f * grid_size};
+          float triverts[3][3] = {{vertices[triangles[n].v[0]].pos.x,
+                                   vertices[triangles[n].v[0]].pos.y,
+                                   vertices[triangles[n].v[0]].pos.z},
+                                  {vertices[triangles[n].v[1]].pos.x,
+                                   vertices[triangles[n].v[1]].pos.y,
+                                   vertices[triangles[n].v[1]].pos.z},
+                                  {vertices[triangles[n].v[2]].pos.x,
+                                   vertices[triangles[n].v[2]].pos.y,
+                                   vertices[triangles[n].v[2]].pos.z}};
+          // detect collision
+          bool touched = (triBoxOverlap(boxcenter, boxhalfsize, triverts) == 1);
+
+          // touched the voxel
+          if (touched) {
+            int index = z * grid_num_y * grid_num_x + y * grid_num_x + x;
+            // add the triangle
+            voxels[index].triangles.push_back(n);
+          }
+        }
+      }
+    }
+  }
+
+  void add_all_bones() {
+    // loop through all bones
+    for (int i = 0; i < static_cast<int>(bones.size()); i++) {
+      // add bone
+      add_bone(bones, i);
+    }
+  }
+
+  void add_bone(const std::vector<Bone>& bones, int bone_index) {
+    // one step equal to grid size multiply step scale
+    const float step_scale = 0.25f;
+
+    structvec3 ray_origin = bones[bone_index].head;
+    structvec3 ray_target = bones[bone_index].tail;
+
+    // ray direction
+    structvec3 ray_dir = bones[bone_index].tail - bones[bone_index].head;
+
+    // how long is one step
+    structvec3 delta_step = ray_dir.Normalized() * grid_size * step_scale *
+                            (float)max_grid_num / 128;
+
+    // tracked ray position
+    structvec3 current_position = ray_origin;
+
+    // start ray casting
+    while (true) {
+      // calculate current voxel indices
+      int current_x = (current_position.x - grid_offset.x) / grid_size;
+      int current_y = (current_position.y - grid_offset.y) / grid_size;
+      int current_z = (current_position.z - grid_offset.z) / grid_size;
+
+      // ray not beyond the voxel grid
+      if (!(current_x < 0 || current_x >= grid_num_x || current_y < 0 ||
+            current_y >= grid_num_y || current_z < 0 ||
+            current_z >= grid_num_z)) {
+        // add to bone point vector
+        bone_points.push_back(Bone_Point(bone_index, current_position));
+      }
+
+      // forward one step
+      current_position += delta_step;
+
+      // ray has missed the target voxel, usually ray is ahead of the target
+      if ((current_position - ray_origin).SquareLength() >
+          (ray_target - ray_origin).SquareLength()) {
+        break;
+      }
+    }
+  }
+
+  void shrink_all_vertex_neibours() {
+    // Loop through the vertices
+    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
+      vertices[i].neibours.shrink_to_fit();
+    }
+  }
+
+  void add_all_vertices() {
+    const float inv_grid_size = 1.0f / grid_size;
+    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
+      int x = (vertices[i].pos.x - grid_offset.x) * inv_grid_size;
+      int y = (vertices[i].pos.y - grid_offset.y) * inv_grid_size;
+      int z = (vertices[i].pos.z - grid_offset.z) * inv_grid_size;
+      int index = z * grid_num_y * grid_num_x + y * grid_num_x + x;
+      voxels[index].vertices.push_back(i);
+    }
+  }
+
+  void shrink_all_vertices() {
+    // Loop through the voxel grids
+    for (int i = 0; i < static_cast<int>(voxels.size()); i++) {
+      voxels[i].vertices.shrink_to_fit();
+    }
+  }
+
+  void shrink_all_triangles() {
+    // Loop through the voxel grids
+    for (int i = 0; i < static_cast<int>(voxels.size()); i++) {
+      voxels[i].triangles.shrink_to_fit();
+    }
+  }
+
+  void init_all_vertex_heats() {
+    // mark vertex voxel darkest
+    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
+      vertices[i].bone_heat.static_heats.assign(bones.size(), 0.0f);
+      vertices[i].bone_heat.static_heats.shrink_to_fit();
+      vertices[i].bone_heat.ping_heats.assign(bones.size(), 0.0f);
+      vertices[i].bone_heat.ping_heats.shrink_to_fit();
+      vertices[i].bone_heat.pong_heats.assign(bones.size(), 0.0f);
+      vertices[i].bone_heat.pong_heats.shrink_to_fit();
+    }
   }
 
   void bone_point_darkness(int index) {
@@ -539,27 +954,104 @@ class VoxelGrid {
     }
   }
 
-  void calculate_all_voxel_darkness() {
-    int supported_thread_num = std::thread::hardware_concurrency();
-    // at least we can do with one thread
-    if (supported_thread_num == 0) {
-      supported_thread_num = 1;
+  // get the nearest hit point and the darkness
+  inline void ray_cast_darkness(const structvec3& ray_origin,
+                                const structvec3& ray_dir,
+                                const Voxel& voxel,
+                                float& darkness,
+                                float& distance) {
+    darkness = 0.0f;
+    float nearest = FLT_MAX;
+    for (int i = 0; i < static_cast<int>(voxel.triangles.size()); i++) {
+      float orig[3] = {ray_origin.x, ray_origin.y, ray_origin.z};
+      float dir[3] = {ray_dir.x, ray_dir.y, ray_dir.z};
+      float vert0[3] = {vertices[triangles[voxel.triangles[i]].v[0]].pos.x,
+                        vertices[triangles[voxel.triangles[i]].v[0]].pos.y,
+                        vertices[triangles[voxel.triangles[i]].v[0]].pos.z};
+      float vert1[3] = {vertices[triangles[voxel.triangles[i]].v[1]].pos.x,
+                        vertices[triangles[voxel.triangles[i]].v[1]].pos.y,
+                        vertices[triangles[voxel.triangles[i]].v[1]].pos.z};
+      float vert2[3] = {vertices[triangles[voxel.triangles[i]].v[2]].pos.x,
+                        vertices[triangles[voxel.triangles[i]].v[2]].pos.y,
+                        vertices[triangles[voxel.triangles[i]].v[2]].pos.z};
+      float t, u, v, det;
+      bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u,
+                                         &v, &det) == 1);
+      if (touched && t >= 0.0f && t < nearest) {
+        nearest = t;
+        darkness = (det > 0.0f ? 1.0f : 2.0f);
+        distance = t;
+      }
     }
-    std::cout << "supported thread num: " << supported_thread_num << std::endl;
+  }
 
-    std::cout << "Calculating voxels darkness..." << std::endl;
-    std::vector<std::thread> threads(supported_thread_num);
+  // get the nearest hit point and the darkness
+  inline int ray_cast_triangle(const structvec3& ray_origin,
+                               const structvec3& ray_dir,
+                               const Voxel& voxel,
+                               const int vertex_index) {
+    float nearest = FLT_MAX;
+    float target_t = FLT_MIN;
+    bool hit = false;
+    for (int i = 0; i < static_cast<int>(voxel.triangles.size()); i++) {
+      float orig[3] = {ray_origin.x, ray_origin.y, ray_origin.z};
+      float dir[3] = {ray_dir.x, ray_dir.y, ray_dir.z};
+      float vert0[3] = {vertices[triangles[voxel.triangles[i]].v[0]].pos.x,
+                        vertices[triangles[voxel.triangles[i]].v[0]].pos.y,
+                        vertices[triangles[voxel.triangles[i]].v[0]].pos.z};
+      float vert1[3] = {vertices[triangles[voxel.triangles[i]].v[1]].pos.x,
+                        vertices[triangles[voxel.triangles[i]].v[1]].pos.y,
+                        vertices[triangles[voxel.triangles[i]].v[1]].pos.z};
+      float vert2[3] = {vertices[triangles[voxel.triangles[i]].v[2]].pos.x,
+                        vertices[triangles[voxel.triangles[i]].v[2]].pos.y,
+                        vertices[triangles[voxel.triangles[i]].v[2]].pos.z};
+      float t, u, v, det;
+      bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u,
+                                         &v, &det) == 1);
+      if (touched && t >= 0.0f) {
+        hit = true;
+        if (t <= nearest) {
+          // one of the target triangle
+          if (triangles[voxel.triangles[i]].v[0] == vertex_index ||
+              triangles[voxel.triangles[i]].v[1] == vertex_index ||
+              triangles[voxel.triangles[i]].v[2] == vertex_index) {
+            target_t = t;
+          }
+          nearest = t;
+        }
+      }
+    }
+    return (hit ? (target_t == nearest ? 2 : 1) : 0);
+  }
 
-    // start all threads
-    for (int i = 0; i < supported_thread_num; i++) {
-      threads[i] = std::thread(&VoxelGrid::calculate_darkness_in_range, this, i,
-                               supported_thread_num);
+  std::vector<int> search_vertices_in_range(const structvec3& pos,
+                                            const float radius) {
+    const float inv_grid_size = 1.0f / grid_size;
+    int x = (pos.x - grid_offset.x) * inv_grid_size;
+    int y = (pos.y - grid_offset.y) * inv_grid_size;
+    int z = (pos.z - grid_offset.z) * inv_grid_size;
+    std::vector<int> result;
+
+    // enlarge the radius by one
+    for (int zz = z - radius - 1; zz <= z + radius + 1; zz++) {
+      if (zz < 0 || zz >= grid_num_z)
+        continue;
+      for (int yy = y - radius - 1; yy <= y + radius + 1; yy++) {
+        if (yy < 0 || yy >= grid_num_y)
+          continue;
+        for (int xx = x - radius - 1; xx <= x + radius + 1; xx++) {
+          if (xx < 0 || xx >= grid_num_x)
+            continue;
+          int index = zz * grid_num_y * grid_num_x + yy * grid_num_x + xx;
+          if (has_vertex(voxels[index])) {
+            result.insert(result.end(), voxels[index].vertices.begin(),
+                          voxels[index].vertices.end());
+          }
+        }
+      }
     }
 
-    // wait for all threads end
-    for (int i = 0; i < supported_thread_num; i++) {
-      threads[i].join();
-    }
+    return result;
   }
 
   float vertex_heat_standard_error() {
@@ -580,106 +1072,6 @@ class VoxelGrid {
       }
     }
     return sqrtf(square_error / valid_bone_heat_count);
-  }
-
-  void diffuse_all_heats() {
-    int supported_thread_num = std::thread::hardware_concurrency();
-    // at least we can do with one thread
-    if (supported_thread_num == 0) {
-      supported_thread_num = 1;
-    }
-    std::cout << "supported thread num: " << supported_thread_num << std::endl;
-
-    std::cout << "Diffusing heats..." << std::endl;
-    for (int i = 0; i < max_grid_num * max_diffuse_loop; i++) {
-      std::cout << "Diffuse pass: " << i << std::endl;
-
-      std::vector<std::thread> threads(supported_thread_num);
-
-      // start all threads
-      for (int j = 0; j < supported_thread_num; j++) {
-        threads[j] = std::thread(&VoxelGrid::diffuse_vertex_in_range, this, j,
-                                 supported_thread_num);
-      }
-
-      // wait for all threads end
-      for (int j = 0; j < supported_thread_num; j++) {
-        threads[j].join();
-      }
-
-      // flip ping pong
-      ping_pong = !ping_pong;
-
-      // the error is small enough
-      if (vertex_heat_standard_error() < 1e-5) {
-        break;
-      }
-    }
-  }
-
-  void generate_weight_for_vertices() {
-    std::cout << "Generating weight for vertices..." << std::endl;
-    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
-      // prepare to fill weights
-      vertices[i].weights.resize(bones.size());
-      vertices[i].weights.shrink_to_fit();
-
-      // copy heats as vertex weights from its voxel
-      if (ping_pong) {
-        for (int j = 0; j < static_cast<int>(bones.size()); j++) {
-          vertices[i].weights[j].bone = j;
-          vertices[i].weights[j].weight = vertices[i].bone_heat.pong_heats[j];
-        }
-      } else {
-        for (int j = 0; j < static_cast<int>(bones.size()); j++) {
-          vertices[i].weights[j].bone = j;
-          vertices[i].weights[j].weight = vertices[i].bone_heat.ping_heats[j];
-        }
-      }
-
-      // sort weights in big-to-small order
-      vertices[i].sort_weight();
-      // remain max influence biggest weights
-      vertices[i].weights.resize(
-          std::max(std::min(max_influence, static_cast<int>(bones.size())), 0));
-      vertices[i].weights.shrink_to_fit();
-
-      // calculate weights sum
-      float sum = 0.0f;
-      for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
-        sum += vertices[i].weights[j].weight;
-      }
-
-      // make weights sum equals one
-      if (sum > 0.0f) {
-        for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
-          vertices[i].weights[j].weight /= sum;
-        }
-      }
-    }
-  }
-
-  void export_bone_weights() {
-    std::cout << "Exporting bone weights..." << std::endl;
-    std::ofstream fout;
-
-    fout.open(weight_file);
-    if (!fout) {
-      return;
-    }
-
-    fout << "# voxel heat diffuse weight export." << std::endl;
-    for (int i = 0; i < static_cast<int>(bones.size()); i++) {
-      fout << "b," << bones[i].name << std::endl;
-    }
-    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
-      for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
-        fout << "w," << i << ',' << vertices[i].weights[j].bone << ','
-             << vertices[i].weights[j].weight << std::endl;
-      }
-    }
-
-    fout.close();
   }
 
   void diffuse_vertex(const int index) {
@@ -764,398 +1156,6 @@ class VoxelGrid {
             vertices[index].bone_heat.static_heats[j];
       }
     }
-  }
-
- private:
-  void read_mesh_from_file(const std::string& filename) {
-    std::ifstream fin;
-
-    fin.open(filename);
-    if (!fin) {
-      return;
-    }
-
-    // read vertices
-    float v1, v2, v3;
-    std::string line;
-    while (std::getline(fin, line)) {
-      std::string label;
-      if (line.find("v,") == 0) {
-        std::vector<std::string> strs;
-        split_string(line, strs, ",");
-        v1 = atof(strs[1].c_str());
-        v2 = atof(strs[2].c_str());
-        v3 = atof(strs[3].c_str());
-        vertices.push_back(Vertex(v1, v2, v3));
-      }
-    }
-    vertices.shrink_to_fit();
-
-    fin.close();
-
-    fin.open(filename);
-    if (!fin) {
-      return;
-    }
-
-    // read faces
-    int f1, f2, f3;
-    while (std::getline(fin, line)) {
-      std::string label;
-      if (line.find("f,") == 0) {
-        std::vector<std::string> strs;
-        split_string(line, strs, ",");
-        for (int i = 0; i < static_cast<int>(strs.size()) - 3; i++) {
-          f1 = atoi(strs[1].c_str());
-          f2 = atoi(strs[i + 2].c_str());
-          f3 = atoi(strs[i + 3].c_str());
-          triangles.push_back(Triangle(f1, f2, f3));
-          // add indices to vertex's neibours
-          std::vector<int>::iterator it;
-          // f1
-          it = std::find(vertices[f1].neibours.begin(),
-                         vertices[f1].neibours.end(), f2);
-          if (it == vertices[f1].neibours.end())
-            vertices[f1].neibours.push_back(f2);
-          it = std::find(vertices[f1].neibours.begin(),
-                         vertices[f1].neibours.end(), f3);
-          if (it == vertices[f1].neibours.end())
-            vertices[f1].neibours.push_back(f3);
-          // f2
-          it = std::find(vertices[f2].neibours.begin(),
-                         vertices[f2].neibours.end(), f1);
-          if (it == vertices[f2].neibours.end())
-            vertices[f2].neibours.push_back(f1);
-          it = std::find(vertices[f2].neibours.begin(),
-                         vertices[f2].neibours.end(), f3);
-          if (it == vertices[f2].neibours.end())
-            vertices[f2].neibours.push_back(f3);
-          // f3
-          it = std::find(vertices[f3].neibours.begin(),
-                         vertices[f3].neibours.end(), f1);
-          if (it == vertices[f3].neibours.end())
-            vertices[f3].neibours.push_back(f1);
-          it = std::find(vertices[f3].neibours.begin(),
-                         vertices[f3].neibours.end(), f2);
-          if (it == vertices[f3].neibours.end())
-            vertices[f3].neibours.push_back(f2);
-        }
-      }
-    }
-    triangles.shrink_to_fit();
-
-    fin.close();
-  }
-
-  void read_bone_from_file(const std::string& filename) {
-    std::ifstream fin;
-
-    fin.open(filename);
-    if (!fin) {
-      return;
-    }
-
-    // read bones
-    std::string name;
-    structvec3 head, tail;
-    std::string line;
-    while (std::getline(fin, line)) {
-      std::string label;
-      if (line.find("b,") == 0) {
-        std::vector<std::string> strs;
-        split_string(line, strs, ",");
-        name = strs[1];
-        head.x = atof(strs[2].c_str());
-        head.y = atof(strs[3].c_str());
-        head.z = atof(strs[4].c_str());
-        tail.x = atof(strs[5].c_str());
-        tail.y = atof(strs[6].c_str());
-        tail.z = atof(strs[7].c_str());
-        bones.push_back(Bone(name, head, tail));
-      }
-    }
-    bones.shrink_to_fit();
-
-    fin.close();
-  }
-
-  inline bool has_triangle(Voxel& voxel) { return voxel.triangles.size() > 0; }
-  inline bool has_vertex(Voxel& voxel) { return voxel.vertices.size() > 0; }
-
-  void get_bound_box(const Triangle& triangle,
-                     structvec3& bb_min,
-                     structvec3& bb_max) {
-    for (int i = 0; i < 3; i++) {
-      if (vertices[triangle.v[i]].pos.x < bb_min.x) {
-        bb_min.x = vertices[triangle.v[i]].pos.x;
-      }
-      if (vertices[triangle.v[i]].pos.y < bb_min.y) {
-        bb_min.y = vertices[triangle.v[i]].pos.y;
-      }
-      if (vertices[triangle.v[i]].pos.z < bb_min.z) {
-        bb_min.z = vertices[triangle.v[i]].pos.z;
-      }
-      if (vertices[triangle.v[i]].pos.x > bb_max.x) {
-        bb_max.x = vertices[triangle.v[i]].pos.x;
-      }
-      if (vertices[triangle.v[i]].pos.y > bb_max.y) {
-        bb_max.y = vertices[triangle.v[i]].pos.y;
-      }
-      if (vertices[triangle.v[i]].pos.z > bb_max.z) {
-        bb_max.z = vertices[triangle.v[i]].pos.z;
-      }
-    }
-  }
-
-  void add_all_triangles() {
-    // loop through all triangles
-    for (int i = 0; i < static_cast<int>(triangles.size()); i++) {
-      // add triangle
-      add_triangle(i);
-    }
-  }
-
-  void add_triangle(int n) {
-    // init the bound box
-    structvec3 bb_min(FLT_MAX, FLT_MAX, FLT_MAX);
-    structvec3 bb_max(FLT_MIN, FLT_MIN, FLT_MIN);
-    // get the bound box
-    get_bound_box(triangles[n], bb_min, bb_max);
-
-    const float inv_grid_size = 1.0f / grid_size;
-    // get index range
-    int min_x = (bb_min.x - grid_offset.x) * inv_grid_size;
-    int min_y = (bb_min.y - grid_offset.y) * inv_grid_size;
-    int min_z = (bb_min.z - grid_offset.z) * inv_grid_size;
-    int max_x = (bb_max.x - grid_offset.x) * inv_grid_size;
-    int max_y = (bb_max.y - grid_offset.y) * inv_grid_size;
-    int max_z = (bb_max.z - grid_offset.z) * inv_grid_size;
-
-    // loop through in the range
-    for (int z = min_z; z <= max_z; z++) {
-      for (int y = min_y; y <= max_y; y++) {
-        for (int x = min_x; x <= max_x; x++) {
-          float boxcenter[3] = {grid_offset.x + (x + 0.5f) * grid_size,
-                                grid_offset.y + (y + 0.5f) * grid_size,
-                                grid_offset.z + (z + 0.5f) * grid_size};
-          float boxhalfsize[3] = {0.5f * grid_size, 0.5f * grid_size,
-                                  0.5f * grid_size};
-          float triverts[3][3] = {{vertices[triangles[n].v[0]].pos.x,
-                                   vertices[triangles[n].v[0]].pos.y,
-                                   vertices[triangles[n].v[0]].pos.z},
-                                  {vertices[triangles[n].v[1]].pos.x,
-                                   vertices[triangles[n].v[1]].pos.y,
-                                   vertices[triangles[n].v[1]].pos.z},
-                                  {vertices[triangles[n].v[2]].pos.x,
-                                   vertices[triangles[n].v[2]].pos.y,
-                                   vertices[triangles[n].v[2]].pos.z}};
-          // detect collision
-          bool touched = (triBoxOverlap(boxcenter, boxhalfsize, triverts) == 1);
-
-          // touched the voxel
-          if (touched) {
-            int index = z * grid_num_y * grid_num_x + y * grid_num_x + x;
-            // add the triangle
-            voxels[index].triangles.push_back(n);
-          }
-        }
-      }
-    }
-  }
-
-  void add_all_bones() {
-    // loop through all bones
-    for (int i = 0; i < static_cast<int>(bones.size()); i++) {
-      // add bone
-      add_bone(bones, i);
-    }
-  }
-
-  void add_bone(const std::vector<Bone>& bones, int bone_index) {
-    // one step equal to grid size multiply step scale
-    const float step_scale = 0.25f;
-
-    structvec3 ray_origin = bones[bone_index].head;
-    structvec3 ray_target = bones[bone_index].tail;
-
-    // ray direction
-    structvec3 ray_dir = bones[bone_index].tail - bones[bone_index].head;
-
-    // how long is one step
-    structvec3 delta_step = ray_dir.Normalized() * grid_size * step_scale *
-                            (float)max_grid_num / 128;
-
-    // tracked ray position
-    structvec3 current_position = ray_origin;
-
-    // start ray casting
-    while (true) {
-      // calculate current voxel indices
-      int current_x = (current_position.x - grid_offset.x) / grid_size;
-      int current_y = (current_position.y - grid_offset.y) / grid_size;
-      int current_z = (current_position.z - grid_offset.z) / grid_size;
-
-      // ray not beyond the voxel grid
-      if (!(current_x < 0 || current_x >= grid_num_x || current_y < 0 ||
-            current_y >= grid_num_y || current_z < 0 ||
-            current_z >= grid_num_z)) {
-        // add to bone point vector
-        bone_points.push_back(Bone_Point(bone_index, current_position));
-      }
-
-      // forward one step
-      current_position += delta_step;
-
-      // ray has missed the target voxel, usually ray is ahead of the target
-      if ((current_position - ray_origin).SquareLength() >
-          (ray_target - ray_origin).SquareLength()) {
-        break;
-      }
-    }
-  }
-
-  void shrink_all_vertex_neibours() {
-    // Loop through the vertices
-    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
-      vertices[i].neibours.shrink_to_fit();
-    }
-  }
-
-  void add_all_vertices() {
-    const float inv_grid_size = 1.0f / grid_size;
-    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
-      int x = (vertices[i].pos.x - grid_offset.x) * inv_grid_size;
-      int y = (vertices[i].pos.y - grid_offset.y) * inv_grid_size;
-      int z = (vertices[i].pos.z - grid_offset.z) * inv_grid_size;
-      int index = z * grid_num_y * grid_num_x + y * grid_num_x + x;
-      voxels[index].vertices.push_back(i);
-    }
-  }
-
-  void shrink_all_vertices() {
-    // Loop through the voxel grids
-    for (int i = 0; i < static_cast<int>(voxels.size()); i++) {
-      voxels[i].vertices.shrink_to_fit();
-    }
-  }
-
-  void shrink_all_triangles() {
-    // Loop through the voxel grids
-    for (int i = 0; i < static_cast<int>(voxels.size()); i++) {
-      voxels[i].triangles.shrink_to_fit();
-    }
-  }
-
-  void init_all_vertex_heats() {
-    // mark vertex voxel darkest
-    for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
-      vertices[i].bone_heat.static_heats.assign(bones.size(), 0.0f);
-      vertices[i].bone_heat.static_heats.shrink_to_fit();
-      vertices[i].bone_heat.ping_heats.assign(bones.size(), 0.0f);
-      vertices[i].bone_heat.ping_heats.shrink_to_fit();
-      vertices[i].bone_heat.pong_heats.assign(bones.size(), 0.0f);
-      vertices[i].bone_heat.pong_heats.shrink_to_fit();
-    }
-  }
-
-  // get the nearest hit point and the darkness
-  inline void ray_cast_darkness(const structvec3& ray_origin,
-                                const structvec3& ray_dir,
-                                const Voxel& voxel,
-                                float& darkness,
-                                float& distance) {
-    darkness = 0.0f;
-    float nearest = FLT_MAX;
-    for (int i = 0; i < static_cast<int>(voxel.triangles.size()); i++) {
-      float orig[3] = {ray_origin.x, ray_origin.y, ray_origin.z};
-      float dir[3] = {ray_dir.x, ray_dir.y, ray_dir.z};
-      float vert0[3] = {vertices[triangles[voxel.triangles[i]].v[0]].pos.x,
-                        vertices[triangles[voxel.triangles[i]].v[0]].pos.y,
-                        vertices[triangles[voxel.triangles[i]].v[0]].pos.z};
-      float vert1[3] = {vertices[triangles[voxel.triangles[i]].v[1]].pos.x,
-                        vertices[triangles[voxel.triangles[i]].v[1]].pos.y,
-                        vertices[triangles[voxel.triangles[i]].v[1]].pos.z};
-      float vert2[3] = {vertices[triangles[voxel.triangles[i]].v[2]].pos.x,
-                        vertices[triangles[voxel.triangles[i]].v[2]].pos.y,
-                        vertices[triangles[voxel.triangles[i]].v[2]].pos.z};
-      float t, u, v, det;
-      bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u,
-                                         &v, &det) == 1);
-      if (touched && t >= 0.0f && t < nearest) {
-        nearest = t;
-        darkness = (det > 0.0f ? 1.0f : 2.0f);
-        distance = t;
-      }
-    }
-  }
-
-  std::vector<int> search_vertices_in_range(const structvec3& pos,
-                                            const float radius) {
-    const float inv_grid_size = 1.0f / grid_size;
-    int x = (pos.x - grid_offset.x) * inv_grid_size;
-    int y = (pos.y - grid_offset.y) * inv_grid_size;
-    int z = (pos.z - grid_offset.z) * inv_grid_size;
-    std::vector<int> result;
-
-    // enlarge the radius by one
-    for (int zz = z - radius - 1; zz <= z + radius + 1; zz++) {
-      if (zz < 0 || zz >= grid_num_z)
-        continue;
-      for (int yy = y - radius - 1; yy <= y + radius + 1; yy++) {
-        if (yy < 0 || yy >= grid_num_y)
-          continue;
-        for (int xx = x - radius - 1; xx <= x + radius + 1; xx++) {
-          if (xx < 0 || xx >= grid_num_x)
-            continue;
-          int index = zz * grid_num_y * grid_num_x + yy * grid_num_x + xx;
-          if (has_vertex(voxels[index])) {
-            result.insert(result.end(), voxels[index].vertices.begin(),
-                          voxels[index].vertices.end());
-          }
-        }
-      }
-    }
-
-    return result;
-  }
-
-  // get the nearest hit point and the darkness
-  inline int ray_cast_triangle(const structvec3& ray_origin,
-                               const structvec3& ray_dir,
-                               const Voxel& voxel,
-                               const int vertex_index) {
-    float nearest = FLT_MAX;
-    float target_t = FLT_MIN;
-    bool hit = false;
-    for (int i = 0; i < static_cast<int>(voxel.triangles.size()); i++) {
-      float orig[3] = {ray_origin.x, ray_origin.y, ray_origin.z};
-      float dir[3] = {ray_dir.x, ray_dir.y, ray_dir.z};
-      float vert0[3] = {vertices[triangles[voxel.triangles[i]].v[0]].pos.x,
-                        vertices[triangles[voxel.triangles[i]].v[0]].pos.y,
-                        vertices[triangles[voxel.triangles[i]].v[0]].pos.z};
-      float vert1[3] = {vertices[triangles[voxel.triangles[i]].v[1]].pos.x,
-                        vertices[triangles[voxel.triangles[i]].v[1]].pos.y,
-                        vertices[triangles[voxel.triangles[i]].v[1]].pos.z};
-      float vert2[3] = {vertices[triangles[voxel.triangles[i]].v[2]].pos.x,
-                        vertices[triangles[voxel.triangles[i]].v[2]].pos.y,
-                        vertices[triangles[voxel.triangles[i]].v[2]].pos.z};
-      float t, u, v, det;
-      bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u,
-                                         &v, &det) == 1);
-      if (touched && t >= 0.0f) {
-        hit = true;
-        if (t <= nearest) {
-          // one of the target triangle
-          if (triangles[voxel.triangles[i]].v[0] == vertex_index ||
-              triangles[voxel.triangles[i]].v[1] == vertex_index ||
-              triangles[voxel.triangles[i]].v[2] == vertex_index) {
-            target_t = t;
-          }
-          nearest = t;
-        }
-      }
-    }
-    return (hit ? (target_t == nearest ? 2 : 1) : 0);
   }
 
   std::string mesh_file;
