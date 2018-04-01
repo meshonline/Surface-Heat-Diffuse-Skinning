@@ -2,7 +2,7 @@
 //  main.cpp
 //  Surface Heat Diffuse
 //
-//  Created by MINGFENWANG on 2018/3/25.
+//  Created by MINGFENWANG on 2017/8/29.
 //  Copyright © 2017年 MINGFENWANG. All rights reserved.
 //
 
@@ -109,14 +109,6 @@ struct Bone_Point {
   structvec3 pos;
   float darkness;
   float radius;
-};
-
-struct Vertex_Node {
-  std::vector<int> vertices;
-};
-
-struct Triangle_Node {
-  std::vector<int> triangles;
 };
 
 // uniform voxel
@@ -392,11 +384,6 @@ class VoxelGrid {
     // search vertices in range
     std::vector<int> result = search_vertices_in_range(
         bone_points[index].pos, bone_points[index].radius);
-    //    Callback_Vertex_Search_In_Range_Traverse call_back_search_point;
-    //    call_back_search_point.vertices = &vertices;
-    //    call_back_search_point.pos = bone_points[index].pos;
-    //    call_back_search_point.radius = bone_points[index].radius * grid_size;
-    //    octree_vertex->traverse(&call_back_search_point);
 
     const float inv_grid_size = 1.0f / grid_size;
     structvec3 ray_origin = bone_points[index].pos;
