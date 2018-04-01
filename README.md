@@ -37,3 +37,7 @@ Just click the 'Surface Heat Diffuse Skinning' button to skin the 3d model, visi
 
 # Support
 http://www.mesh-online.net/voxel.html
+
+# License
+
+The MIT License (MIT)
