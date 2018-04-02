@@ -14,6 +14,8 @@ http://www.mesh-online.net/shd.zip
 
 This is the prebuilt add-on package, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
 
+When the pop up dialog closed, we are still on Addons page, activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
+
 # Build
 There is a 'Readme.txt' in the 'src' sub-directory.
 
@@ -28,16 +30,22 @@ Build the project from source code, then copy the binary to corresponding direct
 
 Copy all the contents in 'Surface-Heat-Diffuse-Skinning/addon' to Blender's add-ons directory.
 
-Launch Blender, from 'File->User Preferences...', active the 'Surface Heat Diffuse Skinning' add-on, then click the 'Save User Settings' button to save the settings.
+Launch Blender, from 'File->User Preferences...', activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
 
 # Usage
-When you select the meshes and the armature, the interface will appear in the 'Animation' tab of the tools shelf on the left.
+Select all the sub-meshes and one armature, the interface will appear on the tool shelf section of 'View3D->Tools->Animation'.
 
-Just click the 'Surface Heat Diffuse Skinning' button to skin the 3d model, visit the support page to learn more details.
+Just click the 'Surface Heat Diffuse Skinning' button with the default parameters to skin your 3d model.
+
+Visit the support page to learn more details.
 
 # Support
 http://www.mesh-online.net/voxel.html
 
 # License
+
+This project is completely free and open source under the very permissive MIT license. No strings attached, no royalties, nothing.
+
+Everyone can freely modify the source code, or uses the modified source code in their own projects for FREE.
 
 The MIT License (MIT)
