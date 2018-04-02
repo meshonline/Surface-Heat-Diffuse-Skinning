@@ -44,8 +44,10 @@ http://www.mesh-online.net/voxel.html
 
 # License
 
-This project is completely free and open source under the very permissive MIT license. No strings attached, no royalties, nothing.
-
-Everyone can freely modify the source code, or uses the modified source code in their own projects for FREE.
-
 The MIT License (MIT)
+
+The project has been released under the very permissive MIT license.
+
+Everyone can freely modify the source code and use the source code in their own projects.
+
+Any improvements are welcome.
