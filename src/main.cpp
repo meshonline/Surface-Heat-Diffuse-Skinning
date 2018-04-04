@@ -131,7 +131,8 @@ class VoxelGrid {
             const int _max_diffuse_loop,
             const int _max_sample_num,
             const int _max_influence,
-            const float _max_fall_off) {
+            const float _max_fall_off,
+            const int _sharpness) {
     // init parameters
     mesh_file = _mesh_file;
     bone_file = _bone_file;
@@ -141,6 +142,7 @@ class VoxelGrid {
     max_sample_num = _max_sample_num;
     max_influence = _max_influence;
     max_fall_off = _max_fall_off;
+    sharpness = _sharpness;
 
     // read mesh data from text file
     read_mesh_from_file(mesh_file);
@@ -797,13 +799,14 @@ class VoxelGrid {
       return;
 
     // search vertices in range
-    std::vector<int> result = search_vertices_in_range(
-        bone_points[index].pos, bone_points[index].radius);
+    std::vector<int> near_vertices;
+    search_vertices_in_range(bone_points[index].pos, bone_points[index].radius,
+                             near_vertices);
 
     const float inv_grid_size = 1.0f / grid_size;
     structvec3 ray_origin = bone_points[index].pos;
-    for (int i = 0; i < static_cast<int>(result.size()); i++) {
-      structvec3 ray_target = vertices[result[i]].pos;
+    for (int i = 0; i < static_cast<int>(near_vertices.size()); i++) {
+      structvec3 ray_target = vertices[near_vertices[i]].pos;
       structvec3 ray_dir = ray_target - ray_origin;
       // start ray casting
       float gx0 = (ray_origin.x - grid_offset.x) * inv_grid_size;
@@ -881,7 +884,7 @@ class VoxelGrid {
         if (has_triangle(voxels[current_index])) {
           // detect all triangles in the voxel
           int hit = ray_cast_triangle(ray_origin, ray_dir.Normalized(),
-                                      voxels[current_index], result[i]);
+                                      voxels[current_index], near_vertices[i]);
 
           // touched any triangle
           if (hit != 0) {
@@ -899,12 +902,27 @@ class VoxelGrid {
               // how much energy was contributed to the vertex
               float hit_energy = 1.0f / (hit_distance / max_grid_num /
                                          (light_strength + 0.01f));
-              // we use power four as the decay ratio
-              hit_energy *= hit_energy;
-              hit_energy *= hit_energy;
+              // different sharpness curvature
+              switch (sharpness) {
+                case 1:
+                  break;
+                case 2:
+                  hit_energy = hit_energy * hit_energy;
+                  break;
+                case 3:
+                  hit_energy = hit_energy * hit_energy * hit_energy;
+                  break;
+                case 4:
+                  hit_energy =
+                      hit_energy * hit_energy * hit_energy * hit_energy;
+                  break;
+
+                default:
+                  break;
+              }
 
               // generate heat
-              vertices[result[i]]
+              vertices[near_vertices[i]]
                   .bone_heat.static_heats[bone_points[index].index] +=
                   hit_energy;
             }
@@ -1024,13 +1042,13 @@ class VoxelGrid {
     return (hit ? (target_t == nearest ? 2 : 1) : 0);
   }
 
-  std::vector<int> search_vertices_in_range(const structvec3& pos,
-                                            const float radius) {
+  void search_vertices_in_range(const structvec3& pos,
+                                const float radius,
+                                std::vector<int>& result) {
     const float inv_grid_size = 1.0f / grid_size;
     int x = (pos.x - grid_offset.x) * inv_grid_size;
     int y = (pos.y - grid_offset.y) * inv_grid_size;
     int z = (pos.z - grid_offset.z) * inv_grid_size;
-    std::vector<int> result;
 
     // enlarge the radius by one
     for (int zz = z - radius - 1; zz <= z + radius + 1; zz++) {
@@ -1050,8 +1068,6 @@ class VoxelGrid {
         }
       }
     }
-
-    return result;
   }
 
   float vertex_heat_standard_error() {
@@ -1166,6 +1182,7 @@ class VoxelGrid {
   int max_sample_num;
   int max_influence;
   float max_fall_off;
+  int sharpness;
   int grid_num_x;
   int grid_num_y;
   int grid_num_z;
@@ -1180,20 +1197,25 @@ class VoxelGrid {
 };
 
 static void show_usage() {
-  std::cout << "Surface Heat Diffuse - Command Line Edition v0.1\n"
+  std::cout << "Surface Heat Diffuse - Command Line Edition v1.0\n"
             << "http://www.mesh-online.net/\n"
-            << "Copyright (c) 2013-2018 Mesh Online. All rights reserved.\n"
+            << "Copyright (c) 2013-2018 Mesh Online. MIT license.\n"
             << "Usage: shd <Input Mesh File> <Input Bone File> <Output Weight "
                "File> <Voxel Resolution> <Diffuse Loop> <Sample Rays> "
-               "<Influence Bones> <Diffuse Falloff>\n"
+               "<Influence Bones> <Diffuse Falloff> <Sharpness>\n"
+            << "Where Sharpness is:\n"
+            << "1\tSoft\n"
+            << "2\tNormal\n"
+            << "3\tSharp\n"
+            << "4\tSharpest\n"
             << "Example:\n"
-            << "./shd mesh.txt bone.txt weight.txt 128 5 64 4 0.2\n"
+            << "./shd mesh.txt bone.txt weight.txt 128 5 64 4 0.2 2\n"
             << std::endl;
 }
 
 int main(int argc, const char* argv[]) {
   // No enough parameters, show the usage.
-  if (argc != 9) {
+  if (argc != 10) {
     show_usage();
     return 1;
   }
@@ -1212,9 +1234,11 @@ int main(int argc, const char* argv[]) {
   int max_sample_num = atoi(argv[6]);
   int max_influence = atoi(argv[7]);
   float max_fall_off = atof(argv[8]);
+  int sharpness = atoi(argv[9]);
 
   VoxelGrid grid(mesh_file, bone_file, weight_file, max_grid_num,
-                 max_diffuse_loop, max_sample_num, max_influence, max_fall_off);
+                 max_diffuse_loop, max_sample_num, max_influence, max_fall_off,
+                 sharpness);
   grid.calculate_all_voxel_darkness();
   grid.diffuse_all_heats();
   grid.generate_weight_for_vertices();
