@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (2, 0),
+    "version": (3, 0),
     "blender": (2, 78, 0),
     "location": "View3D > Tools > Animation",
     "description": "Surface Heat Diffuse Skinning",
@@ -220,7 +220,8 @@ class ModalTimerOperator(bpy.types.Operator):
                         str(context.scene.surface_loops),
                         str(context.scene.surface_samples),
                         str(context.scene.surface_influence),
-                        str(context.scene.surface_falloff)],
+                        str(context.scene.surface_falloff),
+                        context.scene.surface_sharpness],
                         cwd = os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "data"),
                         stdout = PIPE,
                         bufsize = 1,
@@ -288,6 +289,16 @@ def init_properties():
         description = "Protect selected vertex weight",
         default = False)
 
+    bpy.types.Scene.surface_sharpness = EnumProperty(
+        name = "Edges",
+        description = "Edges",
+        items = [
+	('1','Soft','Soft Curvature'),
+	('2','Normal','Normal Curvature'),
+	('3','Sharp','Sharp Curvature'),
+	('4','Sharpest','Sharpest Curvature')],
+	default = '3')
+
 def clear_properties():
     props = ["surface_resolution",
     "surface_samples",
@@ -327,6 +338,7 @@ class SurfaceHeatDiffuseSkinningPanel(bpy.types.Panel):
         layout.prop(context.scene, 'surface_samples', icon='BLENDER', toggle=True)
         layout.prop(context.scene, 'surface_influence', icon='BLENDER', toggle=True)
         layout.prop(context.scene, 'surface_falloff', icon='BLENDER', toggle=True)
+        layout.prop(context.scene, 'surface_sharpness')
         layout.prop(context.scene, 'surface_protect')
 
         row = layout.row()
