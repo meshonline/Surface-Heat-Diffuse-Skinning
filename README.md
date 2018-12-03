@@ -23,7 +23,7 @@ http://www.mesh-online.net/280/surface_heat_diffuse_skinning.py
 
 The user interface will appear in 'View3D->UI->Mesh Online' tab of the sidebar.
 
-![](http://www.mesh-online.net/280/blender-280-sidebar.jpg)
+![]()
 
 # Build
 There is a 'Readme.txt' in the 'src' sub-directory.
