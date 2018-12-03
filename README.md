@@ -18,7 +18,9 @@ When the pop up dialog closed, we are still on Addons page, activate the 'Surfac
 
 # Blender 2.8 Beta support
 If you want to use the add-ons within Blender 2.8 Beta, please download and replace the script files with the experimental version:
+
 http://www.mesh-online.net/280/surface_heat_diffuse_skinning.py
+
 The user interface will appear in 'Properties->Window->Active Tool and Workspace settings' tab.
 
 # Build
