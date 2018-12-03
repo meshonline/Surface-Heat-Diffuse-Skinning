@@ -17,7 +17,7 @@ This is the prebuilt add-on package, launch Blender, navigate to File->User Pref
 When the pop up dialog closed, we are still on Addons page, activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
 
 # Blender 2.8 Beta support
-If you want to use the add-ons within Blender 2.8 Beta, please download and replace the script files with the experimental version:
+If you want to use the add-on within Blender 2.8 Beta, please download and replace the script file with the experimental version:
 
 http://www.mesh-online.net/280/surface_heat_diffuse_skinning.py
 
