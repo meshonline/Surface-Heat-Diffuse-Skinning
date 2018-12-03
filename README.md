@@ -21,7 +21,7 @@ If you want to use the add-on within Blender 2.8 Beta, please download and repla
 
 http://www.mesh-online.net/280/surface_heat_diffuse_skinning.py
 
-The user interface will appear in 'Properties->Window->Active Tool and Workspace settings' tab.
+The user interface will appear in 'View3D->UI->Mesh Online' tab of the sidebar.
 
 # Build
 There is a 'Readme.txt' in the 'src' sub-directory.
