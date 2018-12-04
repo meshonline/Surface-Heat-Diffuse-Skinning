@@ -14,12 +14,12 @@ http://www.mesh-online.net/shd.zip (Blender 2.7)
 
 http://www.mesh-online.net/280/shd.zip (Blender 2.8 Beta)
 
-This is the prebuilt add-on package, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
+These are the pre-built releases, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
 
 When the pop up dialog closed, we are still on Addons page, activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
 
-# Blender 2.8 Beta support
-The latest version supports Blender 2.8 Beta, you may choose the corresponding version to download.
+# Blender 2.8 Beta Support
+The latest pre-built release supports Blender 2.8 Beta, you may choose the corresponding version to download.
 
 The user interface will appear in 'View3D->UI->Mesh Online' tab of the sidebar.
 
