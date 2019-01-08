@@ -155,6 +155,8 @@ class ModalTimerOperator(bpy.types.Operator):
                 running_time = time.time() - self._start_time
                 self.report({'INFO'}, "".join(("Complete, ", "running time: ", \
                 str(int(running_time / 60))," minutes ", str(int(running_time % 60)), " seconds")))
+                # bind meshes to the armature
+                bpy.ops.object.parent_set(type='ARMATURE')
                 return self.cancel(context)
 
         return {'RUNNING_MODAL'}
@@ -196,9 +198,6 @@ class ModalTimerOperator(bpy.types.Operator):
     
         # write bone data
         self.write_bone_data(arm, os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "data", "untitled-bone.txt"))
-        
-        # bind meshes to the armature
-        bpy.ops.object.parent_set(type='ARMATURE')
         
         # do voxel skinning in background
         ON_POSIX = 'posix' in sys.builtin_module_names
