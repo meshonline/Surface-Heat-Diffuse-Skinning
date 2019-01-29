@@ -11,9 +11,8 @@ Edit: I have replaced the octree with naive voxel grid, the speed is stupidly fa
 
 # Download
 http://www.mesh-online.net/shd-blender-addon.zip (Last updated on January 29, 2019)
-Note: The pre-built version has added support for 32 bit of Windows and Blender 2.8 Beta, so the Python script files and the directory structure has changed. If you choose to build from source, please use the Python script files and directory structure in the pre-built version.
 
-These is the pre-built product, unzip the zip file, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, go to either 'shd-blender-addon/addon/2.7' or 'shd-blender-addon/addon/2.8', select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
+This is the pre-built product, unzip the zip file, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, go to either 'shd-blender-addon/addon/2.7' or 'shd-blender-addon/addon/2.8', select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
 
 When the pop up dialog closed, we are still on Addons page, activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
 
@@ -39,6 +38,8 @@ Build the project from source code, then copy the binary to corresponding direct
 Copy all the contents in 'Surface-Heat-Diffuse-Skinning/addon' to Blender's add-ons directory.
 
 Launch Blender, from 'File->User Preferences...', activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
+
+Note: The pre-built version has added support for 32 bit of Windows and Blender 2.8 Beta, so the Python script files and the directory structure has changed. If you choose to build from source, please use the Python script files and directory structure in the pre-built version.
 
 # Usage
 Select all the sub-meshes and one armature, the interface will appear on the tool shelf section of 'View3D->Tools->Animation'.
