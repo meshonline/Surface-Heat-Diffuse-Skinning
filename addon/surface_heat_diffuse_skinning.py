@@ -1,7 +1,26 @@
+# ***** BEGIN GPL LICENSE BLOCK *****
+#
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software Foundation,
+# Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+#
+# ***** END GPL LICENCE BLOCK *****
+
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (3, 0),
+    "version": (3, 1, 1),
     "blender": (2, 78, 0),
     "location": "View3D > Tools > Animation",
     "description": "Surface Heat Diffuse Skinning",
@@ -26,21 +45,21 @@ class ModalTimerOperator(bpy.types.Operator):
     bl_idname = "wm.surface_heat_diffuse"
     bl_label = "Surface Heat Diffuse Skinning"
     bl_options = {'REGISTER', 'UNDO'}
-    
+
     _timer = None
     _pid = None
     _queue = None
-    
+
     _objs = []
     _permulation = []
     _selected_indices = []
     _selected_group_index_weights = []
-    
+
     _start_time = None
 
     def write_bone_data(self, obj, filepath):
         f = open(filepath, 'w', encoding='utf-8')
-    
+
         f.write("# surface heat diffuse bone export.\n")
 
         amt = obj.data
@@ -58,22 +77,22 @@ class ModalTimerOperator(bpy.types.Operator):
 
     def write_mesh_data(self, objs, filepath):
         f = open(filepath, 'w', encoding='utf-8')
-    
+
         f.write("# surface heat diffuse mesh export.\n")
-        
+
         vertex_offset = 0
         for obj in objs:
             for v in obj.data.vertices:
                 world_v_co = obj.matrix_world * v.co
                 f.write("v,{:.6f},{:.6f},{:.6f}\n".format(world_v_co[0], world_v_co[1], world_v_co[2]))
-        
+
             for poly in obj.data.polygons:
                 f.write("f");
                 for loop_ind in poly.loop_indices:
                     vert_ind = obj.data.loops[loop_ind].vertex_index
                     f.write(",{}".format(vertex_offset + vert_ind))
                 f.write("\n")
-    
+
             vertex_offset += len(obj.data.vertices)
 
         f.close()
@@ -92,7 +111,7 @@ class ModalTimerOperator(bpy.types.Operator):
                 # get selected vertex indices
                 self._selected_indices.append([i.index for i in obj.data.vertices if i.select])
                 self._selected_group_index_weights.append([])
-        
+
                 # push protected vertices weight
                 for vert_ind in self._selected_indices[index]:
                     for g in obj.data.vertices[vert_ind].groups:
@@ -126,7 +145,7 @@ class ModalTimerOperator(bpy.types.Operator):
                 obj.vertex_groups[group_name].add([vert_ind], weight, 'REPLACE')
 
         f.close()
-        
+
         if bpy.context.scene.surface_protect:
             for index in range(len(objs)):
                 obj = objs[index]
@@ -138,7 +157,7 @@ class ModalTimerOperator(bpy.types.Operator):
         if event.type == 'ESC':
             self._pid.terminate()
             return self.cancel(context)
-        
+
         if event.type == 'TIMER':
             # background task is still running
             if None == self._pid.poll():
@@ -151,7 +170,7 @@ class ModalTimerOperator(bpy.types.Operator):
                     self.report({'INFO'}, line)
             else:
                 # background task finished running
-                self.read_weight_data(self._objs, os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "data", "untitled-weight.txt"))
+                self.read_weight_data(self._objs, os.path.join(os.path.dirname(__file__), "data", "untitled-weight.txt"))
                 running_time = time.time() - self._start_time
                 self.report({'INFO'}, "".join(("Complete, ", "running time: ", \
                 str(int(running_time / 60))," minutes ", str(int(running_time % 60)), " seconds")))
@@ -169,49 +188,58 @@ class ModalTimerOperator(bpy.types.Operator):
 
         arm = None
         objs = []
-        
+
         # get armature and mesh
         for ob in bpy.context.selected_objects:
             if 'ARMATURE' == ob.type:
                 arm = ob
             if 'MESH' == ob.type:
                 objs.append(ob)
-            
+
         # sort meshes by name
         objs.sort(key=lambda obj:obj.name);
         # save the reference for later use
         self._objs = objs
-        
+
         for obj in objs:
             # focus on the mesh
             bpy.context.scene.objects.active = obj
             # synchronize data
             bpy.ops.object.mode_set(mode='OBJECT')
-        
+
         # write mesh data
-        self.write_mesh_data(objs, os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "data", "untitled-mesh.txt"))
+        self.write_mesh_data(objs, os.path.join(os.path.dirname(__file__), "data", "untitled-mesh.txt"))
 
         # we must focus on the armature before we can write bone data
         bpy.context.scene.objects.active = arm
         # synchronize data
         bpy.ops.object.mode_set(mode='OBJECT')
-    
+
         # write bone data
-        self.write_bone_data(arm, os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "data", "untitled-bone.txt"))
-        
+        self.write_bone_data(arm, os.path.join(os.path.dirname(__file__), "data", "untitled-bone.txt"))
+
         # do voxel skinning in background
         ON_POSIX = 'posix' in sys.builtin_module_names
-        
+
         # chmod
         if ON_POSIX:
-            os.chmod(os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "bin", platform.system(), "shd"), 0o755)
+            os.chmod(os.path.join(os.path.dirname(__file__), "bin", platform.system(), "shd"), 0o755)
 
         def enqueue_output(out, queue):
             for line in iter(out.readline, b''):
                 queue.put(line)
             out.close()
 
-        self._pid = Popen([os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "bin", platform.system(), "shd"),
+        executable_path = None
+        if platform.system() == 'Windows':
+            if platform.machine().endswith('64'):
+                executable_path = os.path.join(os.path.dirname(__file__), "bin", platform.system(), "x64", "shd")
+            else:
+                executable_path = os.path.join(os.path.dirname(__file__), "bin", platform.system(), "x86", "shd")
+        else:
+            executable_path = os.path.join(os.path.dirname(__file__), "bin", platform.system(), "shd")
+
+        self._pid = Popen([executable_path,
                         "untitled-mesh.txt",
                         "untitled-bone.txt",
                         "untitled-weight.txt",
@@ -221,7 +249,7 @@ class ModalTimerOperator(bpy.types.Operator):
                         str(context.scene.surface_influence),
                         str(context.scene.surface_falloff),
                         context.scene.surface_sharpness],
-                        cwd = os.path.join(bpy.utils.script_path_user(), "addons", "surface_heat_diffuse_skinning", "data"),
+                        cwd = os.path.join(os.path.dirname(__file__), "data"),
                         stdout = PIPE,
                         bufsize = 1,
                         close_fds = ON_POSIX)
@@ -230,7 +258,7 @@ class ModalTimerOperator(bpy.types.Operator):
         t = Thread(target=enqueue_output, args=(self._pid.stdout, self._queue))
         t.daemon = True
         t.start()
-        
+
         self._start_time = time.time()
         # start timer to poll data
         self._timer = context.window_manager.event_timer_add(0.1, context.window)
@@ -254,37 +282,37 @@ def init_properties():
         default = 128,
         min = 32,
         max = 256)
- 
+
     bpy.types.Scene.surface_loops = IntProperty(
         name = "Diffuse Loops",
         description = "Heat diffuse pass = Voxel Resolution * Diffuse Loops",
         default = 5,
         min = 1,
         max = 9)
- 
+
     bpy.types.Scene.surface_samples = IntProperty(
         name = "Sample Rays",
         description = "Ray samples count",
         default = 64,
         min = 32,
         max = 128)
- 
+
     bpy.types.Scene.surface_influence = IntProperty(
         name = "Influence Bones",
         description = "Max influence bones",
         default = 4,
         min = 1,
         max = 8)
- 
+
     bpy.types.Scene.surface_falloff = FloatProperty(
         name = "Diffuse Falloff",
         description = "Heat diffuse falloff",
         default = 0.2,
         min = 0.01,
         max = 0.99)
- 
+
     bpy.types.Scene.surface_protect = BoolProperty(
-        name = "Protect Selected Vertex Weight", 
+        name = "Protect Selected Vertex Weight",
         description = "Protect selected vertex weight",
         default = False)
 
@@ -328,7 +356,7 @@ class SurfaceHeatDiffuseSkinningPanel(bpy.types.Panel):
                 obj_count += 1
         return (context.mode == 'OBJECT' and arm_count == 1 and obj_count >= 1)
 
-    
+
     def draw(self, context):
         layout = self.layout
 
