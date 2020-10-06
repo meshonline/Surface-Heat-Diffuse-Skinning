@@ -39,7 +39,7 @@ Copy all the contents in 'Surface-Heat-Diffuse-Skinning/addon' to Blender's add-
 
 Launch Blender, from 'File->User Preferences...', activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
 
-Note: The pre-built version has added support for 32 bit of Windows and Blender 2.8 Beta, so the Python script files and the directory structure has changed. If you choose to build from source, please use the Python script files and directory structure in the pre-built version.
+Note: The pre-built version has added support for 32 bit of Windows and Blender 2.8, so the Python script files and the directory structure has changed. If you choose to build from source, please use the Python script files and directory structure in the pre-built version.
 
 # Usage
 Select all the sub-meshes and one armature, the interface will appear on the tool shelf section of 'View3D->Tools->Animation'.
