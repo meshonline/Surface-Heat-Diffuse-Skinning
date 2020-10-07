@@ -20,7 +20,7 @@
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (3, 1, 1),
+    "version": (3, 1, 2),
     "blender": (2, 78, 0),
     "location": "View3D > Tools > Animation",
     "description": "Surface Heat Diffuse Skinning",
@@ -324,7 +324,7 @@ def init_properties():
 	('2','Normal','Normal Curvature'),
 	('3','Sharp','Sharp Curvature'),
 	('4','Sharpest','Sharpest Curvature')],
-	default = '3')
+	default = '2')
 
 def clear_properties():
     props = ["surface_resolution",
