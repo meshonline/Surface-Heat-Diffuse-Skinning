@@ -191,8 +191,7 @@ VoxelGrid(const std::string& _mesh_file,
     structvec3 bb_std = bb_max - bb_min;
 
     // to contain the triangles, divide the longest by max grid num minus one.
-    grid_size =
-        std::max(std::max(bb_std.x, bb_std.y), bb_std.z) / (max_grid_num - 1);
+    grid_size = std::max(std::max(bb_std.x, bb_std.y), bb_std.z) / (max_grid_num - 1);
 
     const float inv_grid_size = 1.0f / grid_size;
     // plus all the grid num with one.
@@ -204,10 +203,8 @@ VoxelGrid(const std::string& _mesh_file,
     grid_offset = bb_min - structvec3(grid_size, grid_size, grid_size) * 0.5f;
 
     // prepare to build octrees
-    structvec3 grid_min =
-        bb_min - structvec3(grid_size, grid_size, grid_size) * 0.5f;
-    structvec3 grid_max =
-        bb_max + structvec3(grid_size, grid_size, grid_size) * 0.5f;
+    structvec3 grid_min = bb_min - structvec3(grid_size, grid_size, grid_size) * 0.5f;
+    structvec3 grid_max = bb_max + structvec3(grid_size, grid_size, grid_size) * 0.5f;
 
     float min[3], max[3], cellSize[3];
     min[0] = grid_min.x;
@@ -253,8 +250,7 @@ void calculate_all_voxel_darkness()
 
     // start all threads
     for (int i = 0; i < supported_thread_num; i++) {
-        threads[i] = std::thread(&VoxelGrid::calculate_darkness_in_range, this, i,
-                                 supported_thread_num);
+        threads[i] = std::thread(&VoxelGrid::calculate_darkness_in_range, this, i, supported_thread_num);
     }
 
     // wait for all threads end
@@ -280,8 +276,7 @@ void diffuse_all_heats()
 
         // start all threads
         for (int j = 0; j < supported_thread_num; j++) {
-            threads[j] = std::thread(&VoxelGrid::diffuse_vertex_in_range, this, j,
-                                     supported_thread_num);
+            threads[j] = std::thread(&VoxelGrid::diffuse_vertex_in_range, this, j, supported_thread_num);
         }
 
         // wait for all threads end
@@ -323,8 +318,7 @@ void generate_weight_for_vertices()
         // sort weights in big-to-small order
         vertices[i].sort_weight();
         // remain max influence biggest weights
-        vertices[i].weights.resize(
-            std::max(std::min(max_influence, static_cast<int>(bones.size())), 0));
+        vertices[i].weights.resize(std::max(std::min(max_influence, static_cast<int>(bones.size())), 0));
         vertices[i].weights.shrink_to_fit();
 
         // calculate weights sum
@@ -358,8 +352,7 @@ void export_bone_weights()
     }
     for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
         for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
-            fout << "w," << i << ',' << vertices[i].weights[j].bone << ','
-                 << vertices[i].weights[j].weight << std::endl;
+            fout << "w," << i << ',' << vertices[i].weights[j].bone << ',' << vertices[i].weights[j].weight << std::endl;
         }
     }
 
@@ -414,25 +407,19 @@ void read_mesh_from_file(const std::string& filename)
                 // add indices to vertex's neibours
                 std::vector<int>::iterator it;
                 // f1
-                it = std::find(vertices[f1].neibours.begin(),
-                               vertices[f1].neibours.end(), f2);
+                it = std::find(vertices[f1].neibours.begin(), vertices[f1].neibours.end(), f2);
                 if (it == vertices[f1].neibours.end()) vertices[f1].neibours.push_back(f2);
-                it = std::find(vertices[f1].neibours.begin(),
-                               vertices[f1].neibours.end(), f3);
+                it = std::find(vertices[f1].neibours.begin(), vertices[f1].neibours.end(), f3);
                 if (it == vertices[f1].neibours.end()) vertices[f1].neibours.push_back(f3);
                 // f2
-                it = std::find(vertices[f2].neibours.begin(),
-                               vertices[f2].neibours.end(), f1);
+                it = std::find(vertices[f2].neibours.begin(), vertices[f2].neibours.end(), f1);
                 if (it == vertices[f2].neibours.end()) vertices[f2].neibours.push_back(f1);
-                it = std::find(vertices[f2].neibours.begin(),
-                               vertices[f2].neibours.end(), f3);
+                it = std::find(vertices[f2].neibours.begin(), vertices[f2].neibours.end(), f3);
                 if (it == vertices[f2].neibours.end()) vertices[f2].neibours.push_back(f3);
                 // f3
-                it = std::find(vertices[f3].neibours.begin(),
-                               vertices[f3].neibours.end(), f1);
+                it = std::find(vertices[f3].neibours.begin(), vertices[f3].neibours.end(), f1);
                 if (it == vertices[f3].neibours.end()) vertices[f3].neibours.push_back(f1);
-                it = std::find(vertices[f3].neibours.begin(),
-                               vertices[f3].neibours.end(), f2);
+                it = std::find(vertices[f3].neibours.begin(), vertices[f3].neibours.end(), f2);
                 if (it == vertices[f3].neibours.end()) vertices[f3].neibours.push_back(f2);
             }
         }
@@ -541,20 +528,17 @@ void add_triangle(int n)
     for (int z = min_z; z <= max_z; z++) {
         for (int y = min_y; y <= max_y; y++) {
             for (int x = min_x; x <= max_x; x++) {
-                float boxcenter[3] = { grid_offset.x + (x + 0.5f) * grid_size,
-                                       grid_offset.y + (y + 0.5f) * grid_size,
-                                       grid_offset.z + (z + 0.5f) * grid_size };
-                float boxhalfsize[3] = { 0.5f * grid_size, 0.5f * grid_size,
-                                         0.5f * grid_size };
-                float triverts[3][3] = { { vertices[triangles[n].v[0]].pos.x,
-                    vertices[triangles[n].v[0]].pos.y,
-                    vertices[triangles[n].v[0]].pos.z },
-                    { vertices[triangles[n].v[1]].pos.x,
-                                           vertices[triangles[n].v[1]].pos.y,
-                                           vertices[triangles[n].v[1]].pos.z },
-                    { vertices[triangles[n].v[2]].pos.x,
-                                           vertices[triangles[n].v[2]].pos.y,
-                                           vertices[triangles[n].v[2]].pos.z } };
+                float boxcenter[3] = {
+                    grid_offset.x + (x + 0.5f) * grid_size,
+                    grid_offset.y + (y + 0.5f) * grid_size,
+                    grid_offset.z + (z + 0.5f) * grid_size
+                };
+                float boxhalfsize[3] = { 0.5f * grid_size, 0.5f * grid_size, 0.5f * grid_size };
+                float triverts[3][3] = {
+                    { vertices[triangles[n].v[0]].pos.x, vertices[triangles[n].v[0]].pos.y, vertices[triangles[n].v[0]].pos.z },
+                    { vertices[triangles[n].v[1]].pos.x, vertices[triangles[n].v[1]].pos.y, vertices[triangles[n].v[1]].pos.z },
+                    { vertices[triangles[n].v[2]].pos.x, vertices[triangles[n].v[2]].pos.y, vertices[triangles[n].v[2]].pos.z }
+                };
                 // detect collision
                 bool touched = (triBoxOverlap(boxcenter, boxhalfsize, triverts) == 1);
 
@@ -590,8 +574,7 @@ void add_bone(const std::vector<Bone>& bones, int bone_index)
     structvec3 ray_dir = bones[bone_index].tail - bones[bone_index].head;
 
     // how long is one step
-    structvec3 delta_step = ray_dir.Normalized() * grid_size * step_scale *
-        (float)max_grid_num / 128;
+    structvec3 delta_step = ray_dir.Normalized() * grid_size * step_scale * (float)max_grid_num / 128;
 
     // tracked ray position
     structvec3 current_position = ray_origin;
@@ -615,8 +598,7 @@ void add_bone(const std::vector<Bone>& bones, int bone_index)
         current_position += delta_step;
 
         // ray has missed the target voxel, usually ray is ahead of the target
-        if ((current_position - ray_origin).SquareLength() >
-            (ray_target - ray_origin).SquareLength()) {
+        if ((current_position - ray_origin).SquareLength() > (ray_target - ray_origin).SquareLength()) {
             break;
         }
     }
@@ -682,9 +664,7 @@ void bone_point_darkness(int index)
     const int max_outer_probe_count = 16;
     int sample_count = 0;
     // how long does the ray casts
-    float max_ray_length =
-        grid_size * sqrtf(grid_num_x * grid_num_x + grid_num_y * grid_num_y +
-                          grid_num_z * grid_num_z);
+    float max_ray_length = grid_size * sqrtf(grid_num_x * grid_num_x + grid_num_y * grid_num_y + grid_num_z * grid_num_z);
     for (int i = 0; i < max_sample_num; i++) {
         // probe rough result to speed up
         if (sample_count == max_outer_probe_count) {
@@ -781,8 +761,7 @@ void bone_point_darkness(int index)
                 // detect all triangles in the voxel
                 float darkness = 0.0f;
                 float distance = 0.0f;
-                ray_cast_darkness(ray_origin, ray_dir.Normalized(),
-                                  voxels[current_index], darkness, distance);
+                ray_cast_darkness(ray_origin, ray_dir.Normalized(), voxels[current_index], darkness, distance);
 
                 // touched any triangle
                 if (darkness != 0.0f) {
@@ -845,8 +824,7 @@ void bone_point_glow(int index)
 
     // search vertices in range
     std::vector<int> near_vertices;
-    search_vertices_in_range(bone_points[index].pos, bone_points[index].radius,
-                             near_vertices);
+    search_vertices_in_range(bone_points[index].pos, bone_points[index].radius, near_vertices);
 
     const float inv_grid_size = 1.0f / grid_size;
     structvec3 ray_origin = bone_points[index].pos;
@@ -922,14 +900,12 @@ void bone_point_glow(int index)
             }
 
             // get current index
-            int current_index = current_z * grid_num_y * grid_num_x +
-                current_y * grid_num_x + current_x;
+            int current_index = current_z * grid_num_y * grid_num_x + current_y * grid_num_x + current_x;
 
             // if the voxel has any triangles
             if (has_triangle(voxels[current_index])) {
                 // detect all triangles in the voxel
-                int hit = ray_cast_triangle(ray_origin, ray_dir.Normalized(),
-                                            voxels[current_index], near_vertices[i]);
+                int hit = ray_cast_triangle(ray_origin, ray_dir.Normalized(), voxels[current_index], near_vertices[i]);
 
                 // touched any triangle
                 if (hit != 0) {
@@ -939,13 +915,12 @@ void bone_point_glow(int index)
                         float hit_distance = ray_dir.Length() / grid_size;
 
                         // bone glow also has orientation
-                        structvec3 bone_dir = bones[bone_points[index].index].tail -
-                            bones[bone_points[index].index].head;
-                        float light_strength =
-                            1.0f - fabsf(ray_dir.Normalized().Dot(bone_dir.Normalized()));
+                        structvec3 bone_dir = bones[bone_points[index].index].tail - bones[bone_points[index].index].head;
 
-                        // how much energy was contributed to the vertex
-                        double hit_energy = (double)light_strength * (double)max_grid_num / ((double)hit_distance + 0.001);
+                        // we use a value of almost 1.0 as the hit energy when the bone point is too near to the vertex
+                        const double MIN_DISTANCE_RESOLUTION = 1.0 / 10.0;
+                        // how much energy was contributed to the vertex, range in (0, 1.0]
+                        double hit_energy = MIN_DISTANCE_RESOLUTION / ((double)hit_distance + MIN_DISTANCE_RESOLUTION);
                         // different sharpness curvature
                         switch (sharpness) {
                             case 1:
@@ -965,10 +940,15 @@ void bone_point_glow(int index)
                                 break;
                         }
 
+                        // multiply the energy by the maximum grid number to avoid the energy becomes too small.
+                        hit_energy *= (double)max_grid_num;
+
+                        // multiply the energy by the light strength
+                        float light_strength = 1.0f - fabsf(ray_dir.Normalized().Dot(bone_dir.Normalized()));
+                        hit_energy *= (double)light_strength;
+
                         // generate heat
-                        vertices[near_vertices[i]]
-                        .bone_heat.static_heats[bone_points[index].index] +=
-                            hit_energy;
+                        vertices[near_vertices[i]].bone_heat.static_heats[bone_points[index].index] += hit_energy;
                     }
                     break;
                 }
@@ -1002,10 +982,8 @@ void bone_point_glow(int index)
 void calculate_darkness_in_range(const int start, const int block_size)
 {
     // Loop through in the range.
-    for (int i = start; i < static_cast<int>(bone_points.size());
-         i += block_size) {
-        std::cout << "Proceeding bone point: " << i << " of "
-                  << bone_points.size() << std::endl;
+    for (int i = start; i < static_cast<int>(bone_points.size()); i += block_size) {
+        std::cout << "Proceeding bone point: " << i << " of " << bone_points.size() << std::endl;
         bone_point_darkness(i);
         bone_point_glow(i);
     }
@@ -1014,8 +992,7 @@ void calculate_darkness_in_range(const int start, const int block_size)
 void diffuse_vertex_in_range(const int start, const int block_size)
 {
     // Loop through in the range.
-    for (int i = start; i < static_cast<int>(vertices.size());
-         i += block_size) {
+    for (int i = start; i < static_cast<int>(vertices.size()); i += block_size) {
         diffuse_vertex(i);
     }
 }
@@ -1042,8 +1019,7 @@ inline void ray_cast_darkness(const structvec3& ray_origin,
                            vertices[triangles[voxel.triangles[i]].v[2]].pos.y,
                            vertices[triangles[voxel.triangles[i]].v[2]].pos.z };
         float t, u, v, det;
-        bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u,
-                                           &v, &det) == 1);
+        bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u, &v, &det) == 1);
         if (touched && t >= 0.0f && t < nearest) {
             nearest = t;
             darkness = (det > 0.0f ? 1.0f : 2.0f);
@@ -1074,8 +1050,7 @@ inline int ray_cast_triangle(const structvec3& ray_origin,
                            vertices[triangles[voxel.triangles[i]].v[2]].pos.y,
                            vertices[triangles[voxel.triangles[i]].v[2]].pos.z };
         float t, u, v, det;
-        bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u,
-                                           &v, &det) == 1);
+        bool touched = (intersect_triangle(orig, dir, vert0, vert1, vert2, &t, &u, &v, &det) == 1);
         if (touched && t >= 0.0f) {
             hit = true;
             if (t <= nearest) {
@@ -1110,8 +1085,7 @@ void search_vertices_in_range(const structvec3& pos,
                 if (xx < 0 || xx >= grid_num_x) continue;
                 int index = zz * grid_num_y * grid_num_x + yy * grid_num_x + xx;
                 if (has_vertex(voxels[index])) {
-                    result.insert(result.end(), voxels[index].vertices.begin(),
-                                  voxels[index].vertices.end());
+                    result.insert(result.end(), voxels[index].vertices.begin(), voxels[index].vertices.end());
                 }
             }
         }
@@ -1124,13 +1098,12 @@ float vertex_heat_standard_error()
     float square_error = 0.0f;
     int valid_bone_heat_count = 0;
     for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
-        for (int j = 0;
-             j < static_cast<int>(vertices[i].bone_heat.ping_heats.size()); j++) {
+        for (int j = 0; j < static_cast<int>(vertices[i].bone_heat.ping_heats.size()); j++) {
             // ignore empty bone heat
-            if (vertices[i].bone_heat.ping_heats[j] == 0.0f &&
-                vertices[i].bone_heat.pong_heats[j] == 0.0f) continue;
-            float difference = vertices[i].bone_heat.ping_heats[j] -
-                vertices[i].bone_heat.pong_heats[j];
+            if (vertices[i].bone_heat.ping_heats[j] == 0.0f && vertices[i].bone_heat.pong_heats[j] == 0.0f) {
+                continue;
+            }
+            float difference = vertices[i].bone_heat.ping_heats[j] - vertices[i].bone_heat.pong_heats[j];
             square_error += difference * difference;
             valid_bone_heat_count++;
         }
@@ -1142,11 +1115,9 @@ void diffuse_vertex(const int index)
 {
     // reset current ping-pong buffer to accumulate heat from neibours
     if (ping_pong) {
-        memset(&vertices[index].bone_heat.pong_heats.front(), 0,
-               vertices[index].bone_heat.pong_heats.size() * sizeof(float));
+        memset(&vertices[index].bone_heat.pong_heats.front(), 0, vertices[index].bone_heat.pong_heats.size() * sizeof(float));
     } else {
-        memset(&vertices[index].bone_heat.ping_heats.front(), 0,
-               vertices[index].bone_heat.ping_heats.size() * sizeof(float));
+        memset(&vertices[index].bone_heat.ping_heats.front(), 0, vertices[index].bone_heat.ping_heats.size() * sizeof(float));
     }
 
     // unit diffuse decay
@@ -1155,30 +1126,18 @@ void diffuse_vertex(const int index)
 
     // accumulate heat from neibours
     int neibour_count = 0;
-    for (int i = 0; i < static_cast<int>(vertices[index].neibours.size());
-         i++) {
-        float hit_distance =
-            (vertices[index].pos - vertices[vertices[index].neibours[i]].pos)
-            .Length() /
-            grid_size;
+    for (int i = 0; i < static_cast<int>(vertices[index].neibours.size()); i++) {
+        float hit_distance = (vertices[index].pos - vertices[vertices[index].neibours[i]].pos).Length() / grid_size;
 
         float hit_energy = powf(unit_diffuse_decay, hit_distance);
 
         if (ping_pong) {
-            for (int j = 0;
-                 j < static_cast<int>(vertices[index].bone_heat.pong_heats.size());
-                 j++) {
-                vertices[index].bone_heat.pong_heats[j] +=
-                    vertices[vertices[index].neibours[i]].bone_heat.ping_heats[j] *
-                    hit_energy;
+            for (int j = 0; j < static_cast<int>(vertices[index].bone_heat.pong_heats.size()); j++) {
+                vertices[index].bone_heat.pong_heats[j] += vertices[vertices[index].neibours[i]].bone_heat.ping_heats[j] * hit_energy;
             }
         } else {
-            for (int j = 0;
-                 j < static_cast<int>(vertices[index].bone_heat.ping_heats.size());
-                 j++) {
-                vertices[index].bone_heat.ping_heats[j] +=
-                    vertices[vertices[index].neibours[i]].bone_heat.pong_heats[j] *
-                    hit_energy;
+            for (int j = 0; j < static_cast<int>(vertices[index].bone_heat.ping_heats.size()); j++) {
+                vertices[index].bone_heat.ping_heats[j] += vertices[vertices[index].neibours[i]].bone_heat.pong_heats[j] * hit_energy;
             }
         }
         neibour_count++;
@@ -1189,16 +1148,12 @@ void diffuse_vertex(const int index)
         const float inv_neibour_count = 1.0f / neibour_count;
         // average and decay all heats
         if (ping_pong) {
-            for (int j = 0;
-                 j < static_cast<int>(vertices[index].bone_heat.pong_heats.size());
-                 j++) {
+            for (int j = 0; j < static_cast<int>(vertices[index].bone_heat.pong_heats.size()); j++) {
                 vertices[index].bone_heat.pong_heats[j] *= inv_neibour_count;
                 vertices[index].bone_heat.pong_heats[j] *= unit_diffuse_decay;
             }
         } else {
-            for (int j = 0;
-                 j < static_cast<int>(vertices[index].bone_heat.ping_heats.size());
-                 j++) {
+            for (int j = 0; j < static_cast<int>(vertices[index].bone_heat.ping_heats.size()); j++) {
                 vertices[index].bone_heat.ping_heats[j] *= inv_neibour_count;
                 vertices[index].bone_heat.ping_heats[j] *= unit_diffuse_decay;
             }
@@ -1207,18 +1162,12 @@ void diffuse_vertex(const int index)
 
     // provide energy from static heat cache
     if (ping_pong) {
-        for (int j = 0;
-             j < static_cast<int>(vertices[index].bone_heat.pong_heats.size());
-             j++) {
-            vertices[index].bone_heat.pong_heats[j] +=
-                vertices[index].bone_heat.static_heats[j];
+        for (int j = 0; j < static_cast<int>(vertices[index].bone_heat.pong_heats.size()); j++) {
+            vertices[index].bone_heat.pong_heats[j] += vertices[index].bone_heat.static_heats[j];
         }
     } else {
-        for (int j = 0;
-             j < static_cast<int>(vertices[index].bone_heat.ping_heats.size());
-             j++) {
-            vertices[index].bone_heat.ping_heats[j] +=
-                vertices[index].bone_heat.static_heats[j];
+        for (int j = 0; j < static_cast<int>(vertices[index].bone_heat.ping_heats.size()); j++) {
+            vertices[index].bone_heat.ping_heats[j] += vertices[index].bone_heat.static_heats[j];
         }
     }
 }
@@ -1247,7 +1196,7 @@ std::vector<Bone_Point> bone_points;
 
 static void show_usage()
 {
-    std::cout << "Surface Heat Diffuse - Command Line Edition v3.0\n"
+    std::cout << "Surface Heat Diffuse - Command Line Edition v3.1.2\n"
               << "http://www.mesh-online.net/\n"
               << "Copyright (c) 2013-2020 Mesh Online. MIT license.\n"
               << "Usage: shd <Input Mesh File> <Input Bone File> <Output Weight "
@@ -1287,9 +1236,7 @@ int main(int argc, const char *argv[])
     float max_fall_off = atof(argv[8]);
     int sharpness = atoi(argv[9]);
 
-    VoxelGrid grid(mesh_file, bone_file, weight_file, max_grid_num,
-                   max_diffuse_loop, max_sample_num, max_influence, max_fall_off,
-                   sharpness);
+    VoxelGrid grid(mesh_file, bone_file, weight_file, max_grid_num, max_diffuse_loop, max_sample_num, max_influence, max_fall_off, sharpness);
     grid.calculate_all_voxel_darkness();
     grid.diffuse_all_heats();
     grid.generate_weight_for_vertices();
@@ -1297,8 +1244,7 @@ int main(int argc, const char *argv[])
 
     ends = time(NULL);
     int seconds_elapsed = (int)(ends - start);
-    std::cout << "Running Time : " << seconds_elapsed / 60 << " minutes and "
-              << seconds_elapsed % 60 << " seconds" << std::endl;
+    std::cout << "Running Time : " << seconds_elapsed / 60 << " minutes and " << seconds_elapsed % 60 << " seconds" << std::endl;
 
     return 0;
 }
