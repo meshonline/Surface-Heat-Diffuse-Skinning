@@ -324,7 +324,7 @@ def init_properties():
 	('2','Normal','Normal Curvature'),
 	('3','Sharp','Sharp Curvature'),
 	('4','Sharpest','Sharpest Curvature')],
-	default = '2')
+	default = '3')
 
 def clear_properties():
     props = ["surface_resolution",
