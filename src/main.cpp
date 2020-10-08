@@ -916,36 +916,44 @@ void bone_point_glow(int index)
 
                         // bone glow also has orientation
                         structvec3 bone_dir = bones[bone_points[index].index].tail - bones[bone_points[index].index].head;
+                        // calculate angle between ray direction and bone direction, convert range to [-0.5, +0.5].
+                        double angle = acos(ray_dir.Normalized().Dot(bone_dir.Normalized())) / acos(-1) - 0.5;
+                        // calculate light strength, range in (0, 1]
+                        double light_strength = exp(-(angle * angle / (2.0 * 0.02)));
 
-                        // we use a value of almost 1.0 as the hit energy when the bone point is too near to the vertex
-                        const double MIN_DISTANCE_RESOLUTION = 1.0 / 10.0;
-                        // how much energy was contributed to the vertex, range in (0, 1.0]
-                        double hit_energy = MIN_DISTANCE_RESOLUTION / ((double)hit_distance + MIN_DISTANCE_RESOLUTION);
+                        // how much energy will be contributed to the vertex
+                        double hit_energy = 1.0 / (hit_distance + 0.001);
+                        // clamp to range of (0, 1.0]
+                        if (hit_energy > 1.0) {
+                            hit_energy = 1.0;
+                        }
+
                         // different sharpness curvature
                         switch (sharpness) {
                             case 1:
                                 break;
                             case 2:
                                 hit_energy = hit_energy * hit_energy;
+                                light_strength = light_strength * light_strength;
                                 break;
                             case 3:
                                 hit_energy = hit_energy * hit_energy * hit_energy;
+                                light_strength = light_strength * light_strength * light_strength;
                                 break;
                             case 4:
-                                hit_energy =
-                                    hit_energy * hit_energy * hit_energy * hit_energy;
+                                hit_energy = hit_energy * hit_energy * hit_energy * hit_energy;
+                                light_strength = light_strength * light_strength * light_strength * light_strength;
                                 break;
 
                             default:
                                 break;
                         }
 
-                        // multiply the energy by the maximum grid number to avoid the energy becomes too small.
-                        hit_energy *= (double)max_grid_num;
+                        // multiply the energy by the maximum grid number to avoid the energy becomes too small when heat diffuses.
+                        hit_energy *= max_grid_num;
 
                         // multiply the energy by the light strength
-                        float light_strength = 1.0f - fabsf(ray_dir.Normalized().Dot(bone_dir.Normalized()));
-                        hit_energy *= (double)light_strength;
+                        hit_energy *= light_strength;
 
                         // generate heat
                         vertices[near_vertices[i]].bone_heat.static_heats[bone_points[index].index] += hit_energy;
