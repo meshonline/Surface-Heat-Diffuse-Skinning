@@ -294,6 +294,20 @@ void diffuse_all_heats()
     }
 }
 
+int get_nearest_bone(const int index)
+{
+    float min_distance = FLT_MAX;
+    int min_index = 0;
+    for (int i = 0; i < static_cast<int>(bone_points.size()); ++i) {
+        float distance = (bone_points[i].pos - vertices[index].pos).SquareLength();
+        if (distance < min_distance) {
+            min_distance = distance;
+            min_index = bone_points[i].index;
+        }
+    }
+    return min_index;
+}
+
 void generate_weight_for_vertices()
 {
     std::cout << "Generating weight for vertices..." << std::endl;
@@ -332,6 +346,12 @@ void generate_weight_for_vertices()
             for (int j = 0; j < static_cast<int>(vertices[i].weights.size()); j++) {
                 vertices[i].weights[j].weight /= sum;
             }
+        } else {
+            // assign vertex weight for isolated vertices, simply attach to the nearest bone.
+            vertices[i].weights.resize(1);
+            vertices[i].weights.shrink_to_fit();
+            vertices[i].weights[0].bone = get_nearest_bone(i);
+            vertices[i].weights[0].weight = 1.0f;
         }
     }
 }
@@ -1204,7 +1224,7 @@ std::vector<Bone_Point> bone_points;
 
 static void show_usage()
 {
-    std::cout << "Surface Heat Diffuse - Command Line Edition v3.1.2\n"
+    std::cout << "Surface Heat Diffuse - Command Line Edition v3.1.3\n"
               << "http://www.mesh-online.net/\n"
               << "Copyright (c) 2013-2020 Mesh Online. MIT license.\n"
               << "Usage: shd <Input Mesh File> <Input Bone File> <Output Weight "
@@ -1216,7 +1236,7 @@ static void show_usage()
               << "3\tSharp\n"
               << "4\tSharpest\n"
               << "Example:\n"
-              << "./shd mesh.txt bone.txt weight.txt 128 5 64 4 0.2 2\n"
+              << "./shd mesh.txt bone.txt weight.txt 128 5 64 4 0.2 3\n"
               << std::endl;
 }
 
