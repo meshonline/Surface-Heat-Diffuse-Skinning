@@ -10,14 +10,14 @@ The source code of the octree part is not optimized, it runs quite slow, but the
 Edit: I have replaced the octree with naive voxel grid, the speed is stupidly fast now.
 
 # Download
-http://www.mesh-online.net/shd-blender-addon.zip (Last updated on November 27, 2020)
+http://www.mesh-online.net/shd-blender-addon.zip (Last updated on December 4, 2021)
 
 This is the pre-built product, unzip the zip file, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, go to either 'shd-blender-addon/addon/2.7' or 'shd-blender-addon/addon/2.8', select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
 
 When the pop up dialog closed, we are still on Addons page, activate the 'Surface Heat Diffuse Skinning' addon, then click the 'Save User Settings' button and close the 'Blender User Preference' window.
 
-# Blender 2.8 Support
-The latest pre-built product contains both release for Blender 2.7 and release for Blender 2.8, you may choose the corresponding version to install.
+# Blender 2.8+ Support
+The latest pre-built product contains both release for Blender 2.7 and release for Blender 2.8+, you may choose the corresponding version to install.
 
 Type 'N' key in the 3d view if the sidebar is hidden. If you select both the meshes and the armature, the user interface will appear in 'View3D->UI->Mesh Online' tab of the sidebar.
 
