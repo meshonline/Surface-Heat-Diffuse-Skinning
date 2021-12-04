@@ -20,9 +20,9 @@
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (3, 1, 3),
-    "blender": (2, 78, 0),
-    "location": "View3D > Tools > Animation",
+    "version": (3, 3, 1),
+    "blender": (2, 80, 0),
+    "location": "View3D > UI > Mesh Online",
     "description": "Surface Heat Diffuse Skinning",
     "warning": "",
     "wiki_url": "http://www.mesh-online.net/vhd.html",
@@ -40,7 +40,7 @@ from threading  import Thread
 from bpy.props import *
 from queue import Queue, Empty
 
-class ModalTimerOperator(bpy.types.Operator):
+class SFC_OT_ModalTimerOperator(bpy.types.Operator):
     """Operator which runs its self from a timer"""
     bl_idname = "wm.surface_heat_diffuse"
     bl_label = "Surface Heat Diffuse Skinning"
@@ -66,8 +66,8 @@ class ModalTimerOperator(bpy.types.Operator):
         bpy.ops.object.mode_set(mode='EDIT')
         for bone in amt.edit_bones:
             if bone.use_deform:
-                world_bone_head = obj.matrix_world * bone.head
-                world_bone_tail = obj.matrix_world * bone.tail
+                world_bone_head = obj.matrix_world @ bone.head
+                world_bone_tail = obj.matrix_world @ bone.tail
                 f.write("b,{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}\n".format(
                 bone.name, world_bone_head[0], world_bone_head[1], world_bone_head[2],
                 world_bone_tail[0], world_bone_tail[1], world_bone_tail[2]))
@@ -83,7 +83,7 @@ class ModalTimerOperator(bpy.types.Operator):
         vertex_offset = 0
         for obj in objs:
             for v in obj.data.vertices:
-                world_v_co = obj.matrix_world * v.co
+                world_v_co = obj.matrix_world @ v.co
                 f.write("v,{:.6f},{:.6f},{:.6f}\n".format(world_v_co[0], world_v_co[1], world_v_co[2]))
 
             for poly in obj.data.polygons:
@@ -203,7 +203,7 @@ class ModalTimerOperator(bpy.types.Operator):
 
         for obj in objs:
             # focus on the mesh
-            bpy.context.scene.objects.active = obj
+            bpy.context.view_layer.objects.active = obj
             # synchronize data
             bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -211,7 +211,7 @@ class ModalTimerOperator(bpy.types.Operator):
         self.write_mesh_data(objs, os.path.join(os.path.dirname(__file__), "data", "untitled-mesh.txt"))
 
         # we must focus on the armature before we can write bone data
-        bpy.context.scene.objects.active = arm
+        bpy.context.view_layer.objects.active = arm
         # synchronize data
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -261,7 +261,7 @@ class ModalTimerOperator(bpy.types.Operator):
 
         self._start_time = time.time()
         # start timer to poll data
-        self._timer = context.window_manager.event_timer_add(0.1, context.window)
+        self._timer = context.window_manager.event_timer_add(0.1, window=context.window)
         context.window_manager.modal_handler_add(self)
 
         return {'RUNNING_MODAL'}
@@ -281,7 +281,7 @@ def init_properties():
         description = "Maximum voxel grid size",
         default = 128,
         min = 32,
-        max = 256)
+        max = 1024)
 
     bpy.types.Scene.surface_loops = IntProperty(
         name = "Diffuse Loops",
@@ -338,12 +338,12 @@ def clear_properties():
         if p in bpy.types.Scene.bl_rna.properties:
             exec("del bpy.types.Scene." + p)
 
-class SurfaceHeatDiffuseSkinningPanel(bpy.types.Panel):
+class SFC_PT_SurfaceHeatDiffuseSkinningPanel(bpy.types.Panel):
     """Creates a Panel in the Object properties window"""
     bl_label = "Surface Heat Diffuse Skinning"
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_category = 'Animation'
+    bl_region_type = 'UI'
+    bl_category = 'Mesh Online'
 
     @classmethod
     def poll(self, context):
@@ -373,14 +373,14 @@ class SurfaceHeatDiffuseSkinningPanel(bpy.types.Panel):
 
 
 def register():
-    bpy.utils.register_class(SurfaceHeatDiffuseSkinningPanel)
-    bpy.utils.register_class(ModalTimerOperator)
+    bpy.utils.register_class(SFC_PT_SurfaceHeatDiffuseSkinningPanel)
+    bpy.utils.register_class(SFC_OT_ModalTimerOperator)
     init_properties()
 
 
 def unregister():
-    bpy.utils.unregister_class(SurfaceHeatDiffuseSkinningPanel)
-    bpy.utils.unregister_class(ModalTimerOperator)
+    bpy.utils.unregister_class(SFC_PT_SurfaceHeatDiffuseSkinningPanel)
+    bpy.utils.unregister_class(SFC_OT_ModalTimerOperator)
     clear_properties()
 
 
