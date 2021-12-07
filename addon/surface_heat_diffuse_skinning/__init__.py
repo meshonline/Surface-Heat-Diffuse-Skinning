@@ -248,7 +248,8 @@ class SFC_OT_ModalTimerOperator(bpy.types.Operator):
                         str(context.scene.surface_samples),
                         str(context.scene.surface_influence),
                         str(context.scene.surface_falloff),
-                        context.scene.surface_sharpness],
+                        context.scene.surface_sharpness,
+                        "y" if context.scene.detect_surface_solidify else "n"],
                         cwd = os.path.join(os.path.dirname(__file__), "data"),
                         stdout = PIPE,
                         bufsize = 1,
@@ -326,6 +327,11 @@ def init_properties():
 	('4','Sharpest','Sharpest Curvature')],
 	default = '3')
 
+    bpy.types.Scene.detect_surface_solidify = BoolProperty(
+        name = "Detect Solidify",
+        description = "Detect solidified clothes, if you enable this option, make sure that all bones are in the charecter's volume, otherwise, the result may be wrong",
+        default = False)
+
 def clear_properties():
     props = ["surface_resolution",
     "surface_samples",
@@ -367,6 +373,7 @@ class SFC_PT_SurfaceHeatDiffuseSkinningPanel(bpy.types.Panel):
         layout.prop(context.scene, 'surface_falloff', icon='BLENDER', toggle=True)
         layout.prop(context.scene, 'surface_sharpness')
         layout.prop(context.scene, 'surface_protect')
+        layout.prop(context.scene, 'detect_surface_solidify')
 
         row = layout.row()
         row.operator("wm.surface_heat_diffuse")
