@@ -10,7 +10,7 @@ The source code of the octree part is not optimized, it runs quite slow, but the
 Edit: I have replaced the octree with naive voxel grid, the speed is stupidly fast now.
 
 # Download
-http://www.mesh-online.net/shd-blender-addon.zip (Last updated on December 4, 2021)
+http://www.mesh-online.net/shd-blender-addon.zip (Last updated on December 7, 2021)
 
 This is the pre-built product, unzip the zip file, launch Blender, navigate to File->User Preference->Addons, click the 'Install Add-on from file...' button, a pop up dialog will appear, go to either 'shd-blender-addon/addon/2.7' or 'shd-blender-addon/addon/2.8', select 'shd.zip', click the 'Install Add-on from file...' button on the pop up dialog, the addon will be installed to Blender's addons directory.
 
