@@ -145,6 +145,29 @@ struct Voxel {
 	std::vector<int> triangles;
 };
 
+class PositionCompare {
+private:
+///Condition: exponents are same and high (24-FLOAT_CMP_IGNORE_BITS) bits in mantissa are same.
+inline bool FloatEqual(float f1, float f2) const
+{
+	const int FLOAT_CMP_IGNORE_BITS = 7;
+	int i1 =  (*(int *)&f1 & 0x80000000) ? 0x80000000 - *(int *)&f1 : *(int *)&f1;
+	int i2 =  (*(int *)&f2 & 0x80000000) ? 0x80000000 - *(int *)&f2 : *(int *)&f2;
+	int diff = i1 - i2;
+	int ignored = 1 << FLOAT_CMP_IGNORE_BITS;
+	return -ignored < diff && diff < ignored;
+}
+
+public:
+bool operator()(const structvec3& a, const structvec3& b) const
+{
+	// should be better, can wield a few vertices.
+	return FloatEqual(a.x, b.x) && FloatEqual(a.y, b.y) && FloatEqual(a.z, b.z);
+	// exactly compare, we have dropped it in this version.
+	// return a == b;
+}
+};
+
 // 3d voxel grid class
 class VoxelGrid {
 public:
@@ -185,10 +208,10 @@ VoxelGrid(const std::string& _mesh_file,
 	structvec3 bb_min(FLT_MAX, FLT_MAX, FLT_MAX);
 	structvec3 bb_max(FLT_MIN, FLT_MIN, FLT_MIN);
 
-	// loop through all triangles
-	for (int i = 0; i < static_cast<int>(triangles.size()); i++) {
+	// loop through all vertices
+	for (int i = 0; i < static_cast<int>(vertices.size()); i++) {
 		// get the bound box
-		get_bound_box(triangles[i], bb_min, bb_max);
+		get_vertex_bound_box(vertices[i], bb_min, bb_max);
 	}
 
 	// get standard bound box
@@ -418,6 +441,7 @@ void read_mesh_from_file(const std::string& filename)
 
 	// read faces
 	int f1, f2, f3;
+	PositionCompare pc;
 	while (std::getline(fin, line)) {
 		std::string label;
 		if (line.find("f,") == 0) {
@@ -427,6 +451,12 @@ void read_mesh_from_file(const std::string& filename)
 				f1 = atoi(strs[1].c_str());
 				f2 = atoi(strs[i + 2].c_str());
 				f3 = atoi(strs[i + 3].c_str());
+				// ignore ill triangle
+				if (pc(vertices[f1].pos, vertices[f2].pos) ||
+				    pc(vertices[f2].pos, vertices[f3].pos) ||
+				    pc(vertices[f3].pos, vertices[f1].pos)) {
+					continue;
+				}
 				triangles.push_back(Triangle(f1, f2, f3));
 				// add indices to vertex's neibours
 				std::vector<int>::iterator it;
@@ -496,9 +526,33 @@ inline bool has_vertex(Voxel& voxel)
 	return voxel.vertices.size() > 0;
 }
 
-void get_bound_box(const Triangle& triangle,
-                   structvec3&     bb_min,
-                   structvec3&     bb_max)
+void get_vertex_bound_box(const Vertex& vertex,
+                          structvec3&     bb_min,
+                          structvec3&     bb_max)
+{
+	if (vertex.pos.x < bb_min.x) {
+		bb_min.x = vertex.pos.x;
+	}
+	if (vertex.pos.y < bb_min.y) {
+		bb_min.y = vertex.pos.y;
+	}
+	if (vertex.pos.z < bb_min.z) {
+		bb_min.z = vertex.pos.z;
+	}
+	if (vertex.pos.x > bb_max.x) {
+		bb_max.x = vertex.pos.x;
+	}
+	if (vertex.pos.y > bb_max.y) {
+		bb_max.y = vertex.pos.y;
+	}
+	if (vertex.pos.z > bb_max.z) {
+		bb_max.z = vertex.pos.z;
+	}
+}
+
+void get_triangle_bound_box(const Triangle& triangle,
+                            structvec3&     bb_min,
+                            structvec3&     bb_max)
 {
 	for (int i = 0; i < 3; i++) {
 		if (vertices[triangle.v[i]].pos.x < bb_min.x) {
@@ -537,7 +591,7 @@ void add_triangle(int n)
 	structvec3 bb_min(FLT_MAX, FLT_MAX, FLT_MAX);
 	structvec3 bb_max(FLT_MIN, FLT_MIN, FLT_MIN);
 	// get the bound box
-	get_bound_box(triangles[n], bb_min, bb_max);
+	get_triangle_bound_box(triangles[n], bb_min, bb_max);
 
 	const float inv_grid_size = 1.0f / grid_size;
 	// get index range
@@ -700,16 +754,16 @@ void bone_point_darkness(int index)
 				break;
 			}
 		}
-        // ray direction
-        //structvec3 ray_dir = structvec3(mt_dist_05_05(mt_rand),
-        //                                mt_dist_05_05(mt_rand),
-        //                                mt_dist_05_05(mt_rand));
-        float phi = mt_dist_00_2PI(mt_rand);
-        float costheta = mt_dist_N10_10(mt_rand);
-        float sintheta = sqrtf(1.0f - costheta * costheta);
-        structvec3 ray_dir = structvec3(sintheta * cosf(phi),
-                                        sintheta * sinf(phi),
-                                        costheta);
+		// ray direction
+		//structvec3 ray_dir = structvec3(mt_dist_05_05(mt_rand),
+		//                                mt_dist_05_05(mt_rand),
+		//                                mt_dist_05_05(mt_rand));
+		float phi = mt_dist_00_2PI(mt_rand);
+		float costheta = mt_dist_N10_10(mt_rand);
+		float sintheta = sqrtf(1.0f - costheta * costheta);
+		structvec3 ray_dir = structvec3(sintheta * cosf(phi),
+		                                sintheta * sinf(phi),
+		                                costheta);
 		structvec3 ray_target =
 			ray_origin + ray_dir.Normalized() * max_ray_length;
 
@@ -1241,9 +1295,9 @@ bool detect_solidify;
 
 static void show_usage()
 {
-	std::cout << "Surface Heat Diffuse - Command Line Edition v3.3.0\n"
+	std::cout << "Surface Heat Diffuse - Command Line Edition v3.3.3\n"
 	          << "http://www.mesh-online.net/\n"
-	          << "Copyright (c) 2013-2020 Mesh Online. MIT license.\n"
+	          << "Copyright (c) 2013-2022 Mesh Online. MIT license.\n"
 	          << "Usage: shd <Input Mesh File> <Input Bone File> <Output Weight File> "
 	          << "<Voxel Resolution> <Diffuse Loop> <Sample Rays> "
 	          << "<Influence Bones> <Diffuse Falloff> <Sharpness> <Detect Solidify>\n"
