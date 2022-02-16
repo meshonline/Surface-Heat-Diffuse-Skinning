@@ -20,7 +20,7 @@
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (3, 3, 1),
+    "version": (3, 3, 3),
     "blender": (2, 80, 0),
     "location": "View3D > UI > Mesh Online",
     "description": "Surface Heat Diffuse Skinning",
@@ -69,7 +69,7 @@ class SFC_OT_ModalTimerOperator(bpy.types.Operator):
                 world_bone_head = obj.matrix_world @ bone.head
                 world_bone_tail = obj.matrix_world @ bone.tail
                 f.write("b,{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}\n".format(
-                bone.name, world_bone_head[0], world_bone_head[1], world_bone_head[2],
+                bone.name.replace(",", "\\;"), world_bone_head[0], world_bone_head[1], world_bone_head[2],
                 world_bone_tail[0], world_bone_tail[1], world_bone_tail[2]))
         bpy.ops.object.mode_set(mode='OBJECT')
 
@@ -125,7 +125,7 @@ class SFC_OT_ModalTimerOperator(bpy.types.Operator):
                 continue
             tokens = line.strip("\r\n").split(",")
             if tokens[0] == "b":
-                group_name = tokens[1]
+                group_name = tokens[1].replace("\\;", ",")
                 bones.append(group_name)
                 for obj in objs:
                     #check for existing group with the same name
@@ -300,10 +300,10 @@ def init_properties():
 
     bpy.types.Scene.surface_influence = IntProperty(
         name = "Influence Bones",
-        description = "Max influence bones",
-        default = 4,
+        description = "Max influence bones per vertex, please decrease the value (such as 4) for mobile devices",
+        default = 8,
         min = 1,
-        max = 8)
+        max = 128)
 
     bpy.types.Scene.surface_falloff = FloatProperty(
         name = "Diffuse Falloff",
