@@ -20,7 +20,7 @@
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (3, 3, 3),
+    "version": (3, 4, 0),
     "blender": (2, 80, 0),
     "location": "View3D > UI > Mesh Online",
     "description": "Surface Heat Diffuse Skinning",
@@ -181,6 +181,17 @@ class SFC_OT_ModalTimerOperator(bpy.types.Operator):
         return {'RUNNING_MODAL'}
 
     def execute(self, context):
+        arm_count = 0
+        obj_count = 0
+        for ob in bpy.context.selected_objects:
+            if 'ARMATURE' == ob.type:
+                arm_count += 1
+            if 'MESH' == ob.type:
+                obj_count += 1
+        if not (context.mode == 'OBJECT' and arm_count == 1 and obj_count >= 1):
+            self.report({'ERROR'}, "Please select one armature and at least one mesh in 'OBJECT' mode, then try again.")
+            return {'CANCELLED'}
+
         self._objs = []
         self._permulation = []
         self._selected_indices = []
@@ -353,14 +364,7 @@ class SFC_PT_SurfaceHeatDiffuseSkinningPanel(bpy.types.Panel):
 
     @classmethod
     def poll(self, context):
-        arm_count = 0
-        obj_count = 0
-        for ob in bpy.context.selected_objects:
-            if 'ARMATURE' == ob.type:
-                arm_count += 1
-            if 'MESH' == ob.type:
-                obj_count += 1
-        return (context.mode == 'OBJECT' and arm_count == 1 and obj_count >= 1)
+        return True
 
 
     def draw(self, context):
