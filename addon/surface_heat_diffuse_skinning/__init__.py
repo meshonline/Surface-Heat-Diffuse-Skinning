@@ -20,7 +20,7 @@
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (3, 4, 0),
+    "version": (3, 4, 1),
     "blender": (2, 80, 0),
     "location": "View3D > UI > Mesh Online",
     "description": "Surface Heat Diffuse Skinning",
@@ -68,7 +68,7 @@ class SFC_OT_ModalTimerOperator(bpy.types.Operator):
             if bone.use_deform:
                 world_bone_head = obj.matrix_world @ bone.head
                 world_bone_tail = obj.matrix_world @ bone.tail
-                f.write("b,{},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f},{:.6f}\n".format(
+                f.write("b,{},{},{},{},{},{},{}\n".format(
                 bone.name.replace(",", "\\;"), world_bone_head[0], world_bone_head[1], world_bone_head[2],
                 world_bone_tail[0], world_bone_tail[1], world_bone_tail[2]))
         bpy.ops.object.mode_set(mode='OBJECT')
@@ -84,7 +84,7 @@ class SFC_OT_ModalTimerOperator(bpy.types.Operator):
         for obj in objs:
             for v in obj.data.vertices:
                 world_v_co = obj.matrix_world @ v.co
-                f.write("v,{:.6f},{:.6f},{:.6f}\n".format(world_v_co[0], world_v_co[1], world_v_co[2]))
+                f.write("v,{},{},{}\n".format(world_v_co[0], world_v_co[1], world_v_co[2]))
 
             for poly in obj.data.polygons:
                 f.write("f");
