@@ -28,6 +28,10 @@
 #include "tribox.h"
 #include <random>
 
+#if defined(_WIN32) || defined(__WIN32__)
+#define M_PI 3.14159265358979323846
+#endif
+
 std::mt19937 mt_rand;
 std::uniform_real_distribution<float> mt_dist_00_10(0.0f, 1.0f);
 std::uniform_real_distribution<float> mt_dist_05_05(-0.5f, 0.5f);
