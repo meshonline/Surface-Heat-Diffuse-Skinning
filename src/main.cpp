@@ -741,7 +741,6 @@ void bone_point_darkness(int index)
 {
 	const float inv_grid_size = 1.0f / grid_size;
 	float mean_darkness = 0.0f;
-	float mean_radius = 0.0f;
 	structvec3 ray_origin = bone_points[index].pos;
 
 	// cast many random direction rays
@@ -749,6 +748,7 @@ void bone_point_darkness(int index)
 	int sample_count = 0;
 	// how long does the ray casts
 	float max_ray_length = grid_size * sqrtf(grid_num_x * grid_num_x + grid_num_y * grid_num_y + grid_num_z * grid_num_z);
+    std::vector<float> walk_distances;
 	for (int i = 0; i < max_sample_num; i++) {
 		// probe rough result to speed up
 		if (sample_count == max_outer_probe_count) {
@@ -886,19 +886,30 @@ void bone_point_darkness(int index)
 
 		// how far away the ray has gone
 		if (walk_distance > 0.0f) {
-			mean_radius += walk_distance;
+            walk_distances.push_back(walk_distance);
 		} else {
 			structvec3 ray_position(grid_offset.x + (current_x + 0.5f) * grid_size,
 			                        grid_offset.y + (current_y + 0.5f) * grid_size,
 			                        grid_offset.z + (current_z + 0.5f) * grid_size);
 			float radius = (ray_position - ray_origin).Length();
-			mean_radius += radius;
+            walk_distances.push_back(radius);
 		}
 		// increase sample number
 		sample_count++;
 	}
 	mean_darkness /= sample_count;
-	mean_radius /= sample_count;
+
+    // sort walk distances
+    std::sort(walk_distances.begin(), walk_distances.end());
+    // abandon too far away walk distances
+    int valid_sample_count = (int)(0.6f * sample_count + 0.5f);
+    walk_distances.resize(valid_sample_count);
+
+    float mean_radius = 0.0f;
+    for (int i = 0; i < valid_sample_count; ++i) {
+        mean_radius += walk_distances[i];
+    }
+    mean_radius /= valid_sample_count;
 
 	// convert the radius to grid unit
 	mean_radius /= grid_size;
