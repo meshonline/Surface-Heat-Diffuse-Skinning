@@ -20,7 +20,7 @@
 bl_info = {
     "name": "Surface Heat Diffuse Skinning",
     "author": "mesh online",
-    "version": (3, 4, 1),
+    "version": (3, 4, 2),
     "blender": (2, 80, 0),
     "location": "View3D > UI > Mesh Online",
     "description": "Surface Heat Diffuse Skinning",
