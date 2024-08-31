@@ -49,7 +49,7 @@ Just click the 'Surface Heat Diffuse Skinning' button with the default parameter
 Visit the support page to learn more details.
 
 # Support
-http://www.mesh-online.net/voxel.html
+[https://www.mesh-online.net/voxel.html](https://www.mesh-online.net/voxel.html)
 
 # License
 
